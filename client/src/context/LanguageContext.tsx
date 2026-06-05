@@ -50,6 +50,16 @@ export const translations: Translations = {
   date: { zh: '日期', en: 'Date' },
   change: { zh: '变化', en: 'Change' },
   records: { zh: '条记录', en: 'records' },
+
+  // 新增缺失的键
+  activeCharts: { zh: '活跃图表', en: 'Active Charts' },
+  addChart: { zh: '添加图表', en: 'Add Chart' },
+  chartsDisplayed: { zh: '当前图表数', en: 'Charts Displayed' },
+  removeChart: { zh: '移除图表', en: 'Remove Chart' },
+  noCharts: { zh: '暂无图表', en: 'No Charts' },
+  clickAddChart: { zh: '点击上方按钮添加图表', en: 'Click the button above to add a chart' },
+  noDataForMetric: { zh: '该指标暂无数据', en: 'No data for this metric' },
+  noDataAvailable: { zh: '暂无可用健康数据', en: 'No health data available' },
   
   // AI助手
   aiHealthAssistant: { zh: 'AI健康助手', en: 'AI Health Assistant' },

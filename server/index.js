@@ -1,4 +1,5 @@
 require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 
@@ -9,10 +10,16 @@ const goalRoutes = require('./routes/goals');
 const alertRoutes = require('./routes/alerts');
 const passwordRoutes = require('./routes/password');
 const squareRoutes = require('./routes/square');
-const adminRoutes = require('./routes/admin');      // 👈 新增：管理员路由
-const aiRoutes = require('./routes/ai');            // 👈 新增：AI对话路由
-const visionRoutes = require('./routes/vision');    // 👈 新增：AI图片识别路由
-const ocrRoutes = require('./routes/ocr');          // 👈 新增：百度OCR路由
+const adminRoutes = require('./routes/admin');
+const aiRoutes = require('./routes/ai');
+const visionRoutes = require('./routes/vision');
+const ocrRoutes = require('./routes/ocr');
+const paddleOcrRoutes = require('./routes/paddleOcr');
+
+// ========== 新增：导入数据库模块和定时任务 ==========
+//const db = require('./db');   //      // 确保数据库连接和表初始化
+//require('./cronJobs');  //            // 启动定时任务
+// =============================================
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -22,7 +29,7 @@ app.use(cors({
   origin: ['http://localhost:3000', 'http://localhost:5173'],
   credentials: true
 }));
-app.use(express.json({ limit: '50mb' }));  // 增大限制以支持图片上传
+app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // API路由
@@ -32,10 +39,11 @@ app.use('/api/goals', goalRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/password', passwordRoutes);
 app.use('/api/square', squareRoutes);
-app.use('/api/admin', adminRoutes);        // 👈 新增：管理员路由
-app.use('/api/ai', aiRoutes);              // 👈 新增：AI对话路由
-app.use('/api/vision', visionRoutes);      // 👈 新增：AI图片识别路由
-app.use('/api/ocr', ocrRoutes);            // 👈 新增：百度OCR路由
+app.use('/api/admin', adminRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/vision', visionRoutes);
+app.use('/api/ocr', ocrRoutes);
+app.use('/api/paddle-ocr', paddleOcrRoutes);
 
 // 健康检查
 app.get('/api/health', (req, res) => {

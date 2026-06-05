@@ -14,7 +14,10 @@
     "dotenv": "^16.6.1",
     "express": "^4.22.1",
     "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
     "nodemailer": "^8.0.4",
+    "onnxruntime-node": "^1.26.0",
+    "ppu-paddle-ocr": "^5.4.4",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {

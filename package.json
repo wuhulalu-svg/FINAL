@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "onnxruntime-node": "^1.26.0",
+    "ppu-paddle-ocr": "^5.4.4"
+  }
+}
