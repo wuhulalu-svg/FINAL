@@ -427,7 +427,8 @@ function AppContent() {
     setAlerts([]);
   };
 
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  // ✅ 修改：使用 Railway 后端地址，而不是 localhost
+  const API_BASE = import.meta.env.VITE_API_URL || 'https://final-production-4362.up.railway.app/api';
 
   const addHealthRecord = async (record: HealthRecord) => {
     try {
