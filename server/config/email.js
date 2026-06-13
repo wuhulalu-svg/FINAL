@@ -1,29 +1,6 @@
-const nodemailer = require('nodemailer');
-
-// 🚀 强制 IPv4（解决 Railway IPv6 ENETUNREACH）
-require('dns').setDefaultResultOrder('ipv4first');
-
-// QQ邮箱配置（稳定版：587 + STARTTLS）
-const transporter = nodemailer.createTransport({
-  host: 'smtp.qq.com',
-  port: 587,
-  secure: false, // ❗关键：必须 false（STARTTLS）
-  auth: {
-    user: '3321535932@qq.com',
-    pass: 'ylnajxmbhfxsdaef' // QQ邮箱授权码（建议放 env）
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
-
-/**
- * 发送验证码邮件
- * @param {string} email 收件人邮箱
- * @param {string} code 6位验证码
- * @param {string} type 类型：'reset' | 'register'
- */
 async function sendVerificationCode(email, code, type = 'reset') {
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+
   let subject = '';
   let title = '';
   let actionDesc = '';
@@ -42,50 +19,65 @@ async function sendVerificationCode(email, code, type = 'reset') {
     actionDesc = '您的验证码如下：';
   }
 
-  const mailOptions = {
-    from: '"Smart Healthcare Tracker" <3321535932@qq.com>',
-    to: email,
-    subject,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px;">
-        <div style="background: white; border-radius: 12px; padding: 30px; text-align: center;">
-          <h1 style="color: #667eea; margin-bottom: 20px;">${title}</h1>
-          <p style="color: #666; font-size: 16px; margin-bottom: 20px;">${actionDesc}</p>
-
-          <div style="background: #f0f0f0; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <span style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #667eea;">
-              ${code}
-            </span>
-          </div>
-
-          <p style="color: #666; font-size: 14px;">
-            验证码有效期为 <strong>5分钟</strong>，请尽快使用。
-          </p>
-
-          <p style="color: #999; font-size: 12px; margin-top: 30px;">
-            如果您没有进行此操作，请忽略此邮件。
-          </p>
-
-          <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
-
-          <p style="color: #999; font-size: 12px;">
-            Smart Healthcare Tracker - 智能健康助手
-          </p>
-        </div>
-      </div>
-    `
-  };
-
   try {
-    const info = await transporter.sendMail(mailOptions);
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'Smart Healthcare <onboarding@resend.dev>',
+        to: [email],
+        subject,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px;">
+            <div style="background: white; border-radius: 12px; padding: 30px; text-align: center;">
+              <h1 style="color: #667eea; margin-bottom: 20px;">${title}</h1>
 
-    console.log(`✅ ${type} 验证码发送成功`);
-    console.log(`📧 收件人: ${email}`);
-    console.log(`🆔 Message ID: ${info.messageId}`);
+              <p style="color: #666; font-size: 16px; margin-bottom: 20px;">
+                ${actionDesc}
+              </p>
+
+              <div style="background: #f0f0f0; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <span style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #667eea;">
+                  ${code}
+                </span>
+              </div>
+
+              <p style="color: #666; font-size: 14px;">
+                验证码有效期为 <strong>5分钟</strong>
+              </p>
+
+              <p style="color: #999; font-size: 12px; margin-top: 30px;">
+                如果不是你操作，请忽略此邮件
+              </p>
+
+              <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+
+              <p style="color: #999; font-size: 12px;">
+                Smart Healthcare Tracker
+              </p>
+            </div>
+          </div>
+        `
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('❌ Resend API失败:', data);
+      return false;
+    }
+
+    console.log(`✅ 邮件发送成功: ${email}`);
+    console.log(`📧 messageId: ${data.id}`);
 
     return true;
+
   } catch (error) {
-    console.error('❌ 发送邮件失败:', error);
+    console.error('❌ Resend请求异常:', error);
     return false;
   }
 }
