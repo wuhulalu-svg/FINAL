@@ -16,29 +16,43 @@ const visionRoutes = require('./routes/vision');
 const ocrRoutes = require('./routes/ocr');
 const paddleOcrRoutes = require('./routes/paddleOcr');
 const reportsRoutes = require('./routes/reports');
-const healthSummaryRoutes = require('./routes/healthSummary');  // 添加健康总结路由
-
-// 数据库和定时任务（暂时注释，路由内部自己会连接数据库）
-// const pool = require('./db');   // 如果需要主文件使用数据库再取消注释
-// require('./cronJobs');
+const healthSummaryRoutes = require('./routes/healthSummary');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// ✅ 修改 CORS：允许你的 Vercel 前端域名 + 本地开发域名
+// ✅ CORS 配置：允许本地开发和 Vercel 前端域名
 const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:5173',
-    'https://final-hazel-seven-39.vercel.app'   // 已替换为你的实际 Vercel 前端域名
+    'https://final-hazel-seven-39.vercel.app',
+    'http://final-hazel-seven-39.vercel.app'  // 添加 http 版本（兼容性）
 ];
 
 app.use(cors({
     origin: function (origin, callback) {
-        // 允许没有 origin 的请求（如 Postman）
+        // 允许没有 origin 的请求（如 Postman、服务器间调用）
         if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) !== -1) {
+        
+        // 检查是否在白名单中（支持去掉尾部斜杠的匹配）
+        let isAllowed = false;
+        for (let allowed of allowedOrigins) {
+            // 精确匹配
+            if (origin === allowed) {
+                isAllowed = true;
+                break;
+            }
+            // 去掉尾部斜杠后匹配
+            if (origin.replace(/\/$/, '') === allowed) {
+                isAllowed = true;
+                break;
+            }
+        }
+        
+        if (isAllowed) {
             callback(null, true);
         } else {
+            console.warn(`❌ CORS 阻止了来自 ${origin} 的请求`);
             callback(new Error('CORS 不允许此域名访问'));
         }
     },
@@ -61,7 +75,7 @@ app.use('/api/vision', visionRoutes);
 app.use('/api/ocr', ocrRoutes);
 app.use('/api/paddle-ocr', paddleOcrRoutes);
 app.use('/api/reports', reportsRoutes);
-app.use('/api/health-summary', healthSummaryRoutes);  // 添加这一行
+app.use('/api/health-summary', healthSummaryRoutes);
 
 // 健康检查
 app.get('/api/health', (req, res) => {
