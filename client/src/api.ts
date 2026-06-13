@@ -1,4 +1,4 @@
-const API_URL = 'https://smart-healthcare-tracker.onrender.com/api';
+const API_URL = 'https://final-production-4362.up.railway.app/api';
 
 // 存储token
 let authToken: string | null = localStorage.getItem('token');
