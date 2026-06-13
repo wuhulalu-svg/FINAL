@@ -51,7 +51,8 @@
     "tailwind-merge": "*",
     "tesseract.js": "^7.0.0",
     "tw-animate-css": "^1.3.8",
-    "vaul": "^1.1.2"
+    "vaul": "^1.1.2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",

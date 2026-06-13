@@ -15,6 +15,8 @@ const aiRoutes = require('./routes/ai');
 const visionRoutes = require('./routes/vision');
 const ocrRoutes = require('./routes/ocr');
 const paddleOcrRoutes = require('./routes/paddleOcr');
+const reportsRoutes = require('./routes/reports');
+const healthSummaryRoutes = require('./routes/healthSummary');  // 添加健康总结路由
 
 // 数据库和定时任务（暂时注释，路由内部自己会连接数据库）
 // const pool = require('./db');   // 如果需要主文件使用数据库再取消注释
@@ -58,6 +60,8 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/vision', visionRoutes);
 app.use('/api/ocr', ocrRoutes);
 app.use('/api/paddle-ocr', paddleOcrRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/health-summary', healthSummaryRoutes);  // 添加这一行
 
 // 健康检查
 app.get('/api/health', (req, res) => {

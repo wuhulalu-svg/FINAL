@@ -4,8 +4,8 @@ const FormData = require('form-data');
 const router = express.Router();
 
 // 从环境变量读取百度 OCR 密钥
-const API_KEY = process.env.BAIDU_OCR_API_KEY;
-const SECRET_KEY = process.env.BAIDU_OCR_SECRET_KEY;
+const BAIDU_API_KEY = process.env.BAIDU_OCR_API_KEY;
+const BAIDU_SECRET_KEY = process.env.BAIDU_OCR_SECRET_KEY;
 
 let accessToken = null;
 let tokenExpireTime = 0;
@@ -16,10 +16,10 @@ async function getAccessToken() {
     }
 
     try {
-        const url = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${API_KEY}&client_secret=${SECRET_KEY}`;
+        const url = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${BAIDU_API_KEY}&client_secret=${BAIDU_SECRET_KEY}`;
         const response = await axios.post(url);
         accessToken = response.data.access_token;
-        tokenExpireTime = Date.now() + 29 * 24 * 60 * 60 * 1000; // 29天后过期
+        tokenExpireTime = Date.now() + 29 * 24 * 60 * 60 * 1000;
         console.log('✅ 百度OCR Token获取成功');
         return accessToken;
     } catch (error) {
@@ -45,7 +45,6 @@ router.post('/recognize', async (req, res) => {
 
         const token = await getAccessToken();
 
-        // 使用 FormData 方式发送
         const formData = new FormData();
         formData.append('image', image);
 

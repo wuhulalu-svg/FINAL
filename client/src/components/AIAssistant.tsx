@@ -16,16 +16,20 @@ interface AIAssistantProps {
   healthRecords: HealthRecord[];
 }
 
+// API 基础地址（从环境变量读取，本地开发回退到 localhost）
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
 export function AIAssistant({ user, healthRecords }: AIAssistantProps) {
   const { t } = useLanguage();
-  const [messages, setMessages] = useState<Message[]>([
+ // 找到 systemPrompt 构建的部分，把开头的问候语改成英文
+const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      text: `你好 ${user?.name || '用户'}！我是你的AI健康助手"小健"👋\n\n我可以帮你解答健康问题、分析你的健康数据、提供饮食和运动建议。有什么我可以帮你的吗？`,
+      text: `Hello ${user?.name || 'User'}! I am your AI health assistant "Xiao Jian" 👋\n\nI can help you answer health questions, analyze your health data, and provide diet and exercise advice. How can I help you today?`,
       sender: 'ai',
       timestamp: new Date(),
     },
-  ]);
+]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -58,7 +62,7 @@ export function AIAssistant({ user, healthRecords }: AIAssistantProps) {
     setMessages(prev => [...prev, loadingMessage]);
     
     try {
-      const response = await fetch('http://localhost:3001/api/ai/chat', {
+      const response = await fetch(`${API_BASE}/ai/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: input, user: user, healthRecords: healthRecords })

@@ -7,11 +7,13 @@ import { DataImport } from './components/DataImport';
 import { HealthAnalysis } from './components/HealthAnalysis';
 import { AIAssistant } from './components/AIAssistant';
 import { Alerts } from './components/Alerts';
-import { Settings } from './components/Settings';
 import { Profile } from './components/Profile';
 import { DataRecords } from './components/DataRecords';
 import { HealthSquare } from './components/HealthSquare';
 import { AdminPanel } from './components/AdminPanel';
+import { MedicalReports } from './components/MedicalReports';
+import { HealthSummary } from './components/HealthSummary';
+import { GoalsSettings } from './components/GoalsSettings';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authAPI, healthAPI, goalsAPI, alertsAPI, setToken, clearToken, getToken } from './services/api';
 import { useLanguage } from './context/LanguageContext';
@@ -80,7 +82,7 @@ export type Alert = {
   read: boolean;
 };
 
-export type Page = 'dashboard' | 'records' | 'import' | 'analysis' | 'assistant' | 'alerts' | 'settings' | 'profile' | 'square' | 'admin';
+export type Page = 'dashboard' | 'records' | 'import' | 'analysis' | 'assistant' | 'alerts' | 'settings' | 'profile' | 'square' | 'admin' | 'reports' | 'summary' | 'goals';
 
 function AppContent() {
   const { language } = useLanguage();
@@ -95,23 +97,17 @@ function AppContent() {
 
   // 检测健康异常并生成告警（避免重复）
   const checkHealthAnomalies = async (records: HealthRecord[]) => {
-    // 安全检查
     if (!records || records.length < 3) return;
-
     const isZh = language === 'zh';
-
     try {
-      // 获取现有告警，用于去重
       const existingAlerts = await alertsAPI.getAll();
       const existingAlertKeys = new Set(
         existingAlerts.map(a => `${a.metric}_${a.date.split('T')[0]}`)
       );
-
       const alertsToAdd: Omit<Alert, 'id'>[] = [];
       const today = new Date().toISOString().split('T')[0];
       const last7Days = records.slice(0, 7);
       
-      // 1. 检测心率异常
       const heartRates = last7Days.map(r => r.heart_rate).filter(v => v !== undefined) as number[];
       if (heartRates.length >= 3) {
         const avgHeartRate = heartRates.reduce((a, b) => a + b, 0) / heartRates.length;
@@ -143,7 +139,6 @@ function AppContent() {
         }
       }
 
-      // 2. 检测血压异常 - 添加安全检查
       const bloodPressures = last7Days.map(r => r.blood_pressure).filter(v => v && typeof v === 'string') as string[];
       if (bloodPressures.length >= 3) {
         let highCount = 0;
@@ -177,7 +172,6 @@ function AppContent() {
         }
       }
 
-      // 3. 检测血糖异常
       const bloodSugars = last7Days.map(r => r.blood_sugar).filter(v => v !== undefined) as number[];
       if (bloodSugars.length >= 3) {
         const avgBloodSugar = bloodSugars.reduce((a, b) => a + b, 0) / bloodSugars.length;
@@ -207,7 +201,6 @@ function AppContent() {
         }
       }
 
-      // 4. 检测BMI异常
       const bmis = last7Days.map(r => r.bmi).filter(v => v !== undefined) as number[];
       if (bmis.length >= 3) {
         const avgBmi = bmis.reduce((a, b) => a + b, 0) / bmis.length;
@@ -237,7 +230,6 @@ function AppContent() {
         }
       }
 
-      // 5. 检测体脂率异常
       const bodyFats = last7Days.map(r => r.body_fat).filter(v => v !== undefined) as number[];
       if (bodyFats.length >= 3) {
         const avgBodyFat = bodyFats.reduce((a, b) => a + b, 0) / bodyFats.length;
@@ -258,7 +250,6 @@ function AppContent() {
         }
       }
 
-      // 6. 检测睡眠异常
       const sleepLevels = last7Days.map(r => r.sleep_level).filter(v => v !== undefined) as number[];
       if (sleepLevels.length >= 3) {
         const avgSleep = sleepLevels.reduce((a, b) => a + b, 0) / sleepLevels.length;
@@ -277,7 +268,6 @@ function AppContent() {
         }
       }
 
-      // 7. 检测步数不足
       const steps = last7Days.map(r => r.steps).filter(v => v !== undefined) as number[];
       if (steps.length >= 3) {
         const avgSteps = steps.reduce((a, b) => a + b, 0) / steps.length;
@@ -296,7 +286,6 @@ function AppContent() {
         }
       }
 
-      // 8. 检测体重异常趋势
       const weights = last7Days.map(r => r.weight).filter(v => v !== undefined) as number[];
       if (weights.length >= 5) {
         const firstWeight = weights[0];
@@ -323,7 +312,6 @@ function AppContent() {
         }
       }
 
-      // 9. 检测肌肉量不足
       const muscleMasses = last7Days.map(r => r.muscle_mass).filter(v => v !== undefined) as number[];
       if (muscleMasses.length >= 3) {
         const avgMuscle = muscleMasses.reduce((a, b) => a + b, 0) / muscleMasses.length;
@@ -344,18 +332,12 @@ function AppContent() {
         }
       }
 
-      // 保存告警到后端
       for (const alert of alertsToAdd) {
         try {
           await alertsAPI.create(alert);
-          console.log(`✅ Alert created: ${alert.title}`);
         } catch (error) {
           console.error('Failed to create alert:', error);
         }
-      }
-      
-      if (alertsToAdd.length > 0) {
-        console.log(`✅ Total ${alertsToAdd.length} new alerts created`);
       }
     } catch (error) {
       console.error('Error in checkHealthAnomalies:', error);
@@ -374,7 +356,6 @@ function AppContent() {
       setHealthGoals(goals);
       setAlerts(userAlerts);
       
-      // 只在没有今日告警且数据存在时检测
       const today = new Date().toISOString().split('T')[0];
       const hasTodayAlert = userAlerts.some(a => a.date === today);
       if (!hasTodayAlert && records.length > 0) {
@@ -446,13 +427,14 @@ function AppContent() {
     setAlerts([]);
   };
 
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
   const addHealthRecord = async (record: HealthRecord) => {
     try {
       console.log('💾 Saving health record...');
       await healthAPI.saveRecord(record);
       console.log('✅ Health record saved successfully');
       
-      // 延迟确保数据已写入数据库
       await new Promise(resolve => setTimeout(resolve, 300));
       
       console.log('🔄 Reloading data...');
@@ -470,18 +452,34 @@ function AppContent() {
       
       console.log('✅ Data reloaded');
       
-      // 检测异常（用 try-catch 包裹，避免影响主流程）
-      if (records.length > 0) {
-        console.log('🔍 Detecting health anomalies...');
-        await checkHealthAnomalies(records);
-        const finalAlerts = await alertsAPI.getAll();
-        setAlerts(finalAlerts);
-        console.log('✅ Anomaly detection completed');
+      // 触发后端告警生成
+      console.log('🔍 Generating alerts...');
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/alerts/generate`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log(`✅ 告警生成完成: ${result.message}`);
+          
+          // 重新加载告警
+          const finalAlerts = await alertsAPI.getAll();
+          setAlerts(finalAlerts);
+        } else {
+          console.error('告警生成失败:', await response.text());
+        }
+      } catch (alertError) {
+        console.error('告警生成请求失败:', alertError);
       }
       
     } catch (error) {
       console.error('❌ Failed to save health record:', error);
-      // 重新抛出错误，让 DataImport 组件处理
       throw error;
     }
   };
@@ -541,25 +539,16 @@ function AppContent() {
     }
   };
 
-  // 一键删除所有健康记录
   const deleteAllHealthRecords = async () => {
     const lang = language === 'zh';
     const confirmed = window.confirm(
       lang ? '确定要删除所有健康记录吗？此操作不可撤销！' : 'Are you sure you want to delete all health records? This action cannot be undone!'
     );
-    
     if (!confirmed) return;
-    
     try {
-      // 获取所有记录的日期
       const dates = healthRecords.map(record => record.date);
-      
-      // 并行删除所有记录
       await Promise.all(dates.map(date => healthAPI.deleteRecord(date)));
-      
-      // 重新加载数据
       await loadUserData();
-      
       alert(lang ? '已删除所有记录' : 'All records deleted');
     } catch (error) {
       console.error('Failed to delete all records:', error);
@@ -620,7 +609,7 @@ function AppContent() {
             />
           )}
           {currentPage === 'settings' && (
-            <Settings
+            <GoalsSettings
               user={user}
               healthGoals={healthGoals}
               onAddGoal={addHealthGoal}
@@ -644,6 +633,17 @@ function AppContent() {
             />
           )}
           {currentPage === 'square' && <HealthSquare userId={user?.id || 0} userName={user?.name || ''} />}
+          {currentPage === 'reports' && <MedicalReports user={user} />}
+          {currentPage === 'summary' && <HealthSummary user={user} />}
+          {currentPage === 'goals' && (
+            <GoalsSettings
+              user={user}
+              healthGoals={healthGoals}
+              onAddGoal={addHealthGoal}
+              onUpdateGoal={updateHealthGoal}
+              onDeleteGoal={deleteHealthGoal}
+            />
+          )}
           {currentPage === 'admin' && <AdminPanel />}
         </motion.main>
       </AnimatePresence>

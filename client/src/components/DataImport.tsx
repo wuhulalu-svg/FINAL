@@ -11,7 +11,7 @@ interface DataImportProps {
 
 type ExtractedData = Partial<Record<keyof HealthRecord, string | number>>;
 
-// ==================== 图片压缩函数 ====================
+// ==================== 图片压缩函数（OCR保留） ====================
 async function compressImageForOCR(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -19,7 +19,7 @@ async function compressImageForOCR(file: File): Promise<string> {
       const canvas = document.createElement('canvas');
       let width = img.width;
       let height = img.height;
-      const maxSize = 1024; // 限制长边最大1024像素
+      const maxSize = 1024;
       if (width > height && width > maxSize) {
         height = (height * maxSize) / width;
         width = maxSize;
@@ -65,54 +65,45 @@ async function tesseractFallback(imageFile: File): Promise<ExtractedData> {
   }
 }
 
-// ==================== OCR 文本解析（专为体脂秤报告优化） ====================
+// ==================== OCR 文本解析（体脂秤报告） ====================
 function extractHealthDataFromText(text: string): ExtractedData {
   const extracted: ExtractedData = {};
-  // 按行分割
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
   console.log('📄 原始行内容:', lines);
 
-  // 辅助函数：从字符串中提取数字（支持 "64", "41.5kg", "83.3%", "1588Kcal" 等）
   const extractNumber = (str: string): number | null => {
     const match = str.match(/(\d+(?:\.\d+)?)/);
     return match ? parseFloat(match[1]) : null;
   };
 
-  // 根据用户提供的正确行索引（从0开始）提取
-  // 以下索引均基于用户提供的 97 行数组验证
-  extracted.weight = extractNumber(lines[3]);          // 行3: '64'
-  extracted.bmi = extractNumber(lines[12]);            // 行12: '19.8↑0.1'
-  extracted.bodyFat = extractNumber(lines[14]);        // 行14: '11.9%↓0.1'
-  extracted.bodyWater = extractNumber(lines[21]);      // 行21: '41.5kg'
-  extracted.bodyFatMass = extractNumber(lines[23]);    // 行23: '7.6kg'
-  extracted.boneMass = extractNumber(lines[25]);       // 行25: '3.1kg'
-  extracted.protein = extractNumber(lines[27]);        // 行27: '11.1kg'
-  extracted.muscleMass = extractNumber(lines[29]);     // 行29: '53.3kg'
-  extracted.muscleRate = extractNumber(lines[32]);     // 行32: '83.3%'
-  extracted.bodyWaterRate = extractNumber(lines[37]);  // 行37: '65%↑0.5'
-  extracted.proteinRate = extractNumber(lines[38]);    // 行38: '17.3%↓0.4'
-  extracted.boneMassRate = extractNumber(lines[43]);   // 行43: '4.8%↑0.1'
-  extracted.skeletalMuscleMass = extractNumber(lines[44]); // 行44: '30.4kg'
-  extracted.visceralFat = extractNumber(lines[50]);    // 行50: '3'
-  extracted.basalMetabolicRate = extractNumber(lines[51]); // 行51: '1588Kcal↑4'
-  extracted.bodyAge = extractNumber(lines[57]);        // 行57: '19岁'
-  extracted.leanBodyMass = extractNumber(lines[61]);   // 行61: '56.4kg'
-  extracted.heartRate = extractNumber(lines[63]);      // 行63: '138次/分'
-  extracted.waistHipRatio = extractNumber(lines[56]);  // 行56: '1.1'
+  extracted.weight = extractNumber(lines[3]);
+  extracted.bmi = extractNumber(lines[12]);
+  extracted.bodyFat = extractNumber(lines[14]);
+  extracted.bodyWater = extractNumber(lines[21]);
+  extracted.bodyFatMass = extractNumber(lines[23]);
+  extracted.boneMass = extractNumber(lines[25]);
+  extracted.protein = extractNumber(lines[27]);
+  extracted.muscleMass = extractNumber(lines[29]);
+  extracted.muscleRate = extractNumber(lines[32]);
+  extracted.bodyWaterRate = extractNumber(lines[37]);
+  extracted.proteinRate = extractNumber(lines[38]);
+  extracted.boneMassRate = extractNumber(lines[43]);
+  extracted.skeletalMuscleMass = extractNumber(lines[44]);
+  extracted.visceralFat = extractNumber(lines[50]);
+  extracted.basalMetabolicRate = extractNumber(lines[51]);
+  extracted.bodyAge = extractNumber(lines[57]);
+  extracted.leanBodyMass = extractNumber(lines[61]);
+  extracted.heartRate = extractNumber(lines[63]);
+  extracted.waistHipRatio = extractNumber(lines[56]);
 
-  // 日期：行1是 '2026/01/22'
   const dateMatch = lines[1]?.match(/(\d{4}\/\d{2}\/\d{2})/);
   extracted.date = dateMatch ? dateMatch[1].replace(/\//g, '-') : new Date().toISOString().split('T')[0];
 
   console.log('📊 最终提取结果:', extracted);
   return extracted;
 }
-// ==================== 主 OCR 函数（优先百度OCR，带压缩） ====================
-// 删除 compressImageForOCR 函数
-// 删除百度 OCR 调用
 
-// 修改 tesseractFallback，使其成为主识别函数
-// 替换原有的 performRealOCR 和所有辅助函数
+// ==================== 主 OCR 函数（调用后端百度OCR） ====================
 async function performRealOCR(imageFile: File): Promise<ExtractedData> {
   const base64 = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -136,7 +127,8 @@ async function performRealOCR(imageFile: File): Promise<ExtractedData> {
   if (!data.success) throw new Error(data.error);
   return extractHealthDataFromText(data.text);
 }
-// ==================== 健康指标配置（保持不变） ====================
+
+// ==================== 健康指标配置 ====================
 const HEALTH_METRICS = {
   'Vital Signs': [
     { key: 'bloodSugar', labelKey: 'bloodSugarLabel', unit: 'mmol/L' },
@@ -299,58 +291,148 @@ export function DataImport({ user, onAddRecord, healthRecords }: DataImportProps
       setUploadStatus('success');
       const count = Object.keys(data).filter(k => k !== 'date' && data[k] !== undefined && data[k] !== '').length;
       if (count === 0) setOcrError(t('extractFailed'));
-    } else if (file.name.endsWith('.csv')) {
+    } 
+    // ==================== CSV 处理（支持双引号包裹的行） ====================
+    else if (file.name.endsWith('.csv')) {
       setUploadType('csv');
       isImportingRef.current = true;
       const reader = new FileReader();
       reader.onload = async (e) => {
         try {
           const content = e.target?.result as string;
-          const lines = content.split(/\r?\n/);
-          const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+          const lines = content.split(/\r?\n/).filter(line => line.trim().length > 0);
+          if (lines.length < 2) {
+            showToast(`❌ ${t('invalidFile')}`, 'error');
+            return;
+          }
+
+          // 解析表头：第一行第一个双引号内的内容（例如 "date,steps,calories,..."）
+          let headerLine = lines[0];
+          let headerMatch = headerLine.match(/^"([^"]+)"|^([^,]+)/);
+          let headerStr = headerMatch ? (headerMatch[1] || headerMatch[2]) : '';
+          if (!headerStr) {
+            showToast(`❌ 无法解析表头`, 'error');
+            return;
+          }
+          const rawHeaders = headerStr.split(',').map(h => h.trim().toLowerCase());
+          
+          const columnMapping: Record<string, string> = {
+            'date': 'date',
+            'steps': 'steps',
+            'calories': 'calories',
+            'heart_rate': 'heartRate',
+            'heartrate': 'heartRate',
+            'sleep_level': 'sleepLevel',
+            'sleepscore': 'sleepLevel',
+            'weight': 'weight',
+            'bmi': 'bmi',
+            'body_fat': 'bodyFat',
+            'bodyfat': 'bodyFat',
+            'body_water': 'bodyWater',
+            'bodywater': 'bodyWater',
+            'muscle_mass': 'muscleMass',
+            'musclemass': 'muscleMass',
+            'blood_pressure': 'bloodPressure',
+            'bloodpressure': 'bloodPressure',
+            'blood_sugar': 'bloodSugar',
+            'bloodsugar': 'bloodSugar'
+          };
+          
+          const fieldIndexMap: { index: number; field: string }[] = [];
+          rawHeaders.forEach((header, idx) => {
+            const mapped = columnMapping[header];
+            if (mapped) {
+              fieldIndexMap.push({ index: idx, field: mapped });
+            }
+          });
+          
+          if (fieldIndexMap.length === 0) {
+            showToast(`❌ 未找到可识别的列，请检查表头`, 'error');
+            return;
+          }
+
           const records: HealthRecord[] = [];
           for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
-            const values = line.split(',').map(v => v.trim());
+            const line = lines[i];
+            if (!line.trim()) continue;
+            
+            // 提取第一个双引号内的内容（如果存在），否则取整行
+            let dataStr = line;
+            const quoteMatch = line.match(/^"([^"]+)"/);
+            if (quoteMatch) {
+              dataStr = quoteMatch[1];
+            }
+            
+            const values = dataStr.split(',').map(v => v.trim());
             const record: HealthRecord = {};
-            headers.forEach((header, idx) => {
-              const value = values[idx];
-              if (!value || value === '') return;
-              if (header === 'date') record.date = value.replace(/\//g, '-');
-              else if (header === 'steps') record.steps = parseFloat(value);
-              else if (header === 'calories') record.calories = parseFloat(value);
-              else if (header === 'heart_rate' || header === 'heartrate') record.heartRate = parseFloat(value);
-              else if (header === 'sleep_level' || header === 'sleepscore') record.sleepLevel = parseFloat(value);
-              else if (header === 'weight') record.weight = parseFloat(value);
-              else if (header === 'bmi') record.bmi = parseFloat(value);
-              else if (header === 'body_fat' || header === 'bodyfat') record.bodyFat = parseFloat(value);
-              else if (header === 'blood_pressure' || header === 'bloodpressure') record.bloodPressure = value;
-              else if (header === 'blood_sugar' || header === 'bloodsugar') record.bloodSugar = parseFloat(value);
-              else if (header === 'body_water' || header === 'bodywater') record.bodyWater = parseFloat(value);
-              else if (header === 'muscle_mass' || header === 'musclemass') record.muscleMass = parseFloat(value);
-            });
-            if (record.date) records.push(record);
+            
+            for (const { index, field } of fieldIndexMap) {
+              if (index >= values.length) continue;
+              let rawValue = values[index];
+              if (rawValue === undefined || rawValue === '') continue;
+              
+              if (field === 'date') {
+                let dateStr = rawValue.replace(/\//g, '-');
+                const parts = dateStr.split('-');
+                if (parts.length === 3) {
+                  const year = parts[0];
+                  const month = parts[1].padStart(2, '0');
+                  const day = parts[2].padStart(2, '0');
+                  record.date = `${year}-${month}-${day}`;
+                } else {
+                  record.date = dateStr;
+                }
+              } else if (field === 'bloodPressure') {
+                if (rawValue.includes('/')) record.bloodPressure = rawValue;
+              } else {
+                const num = parseFloat(rawValue);
+                if (!isNaN(num)) {
+                  (record as any)[field] = num;
+                }
+              }
+            }
+            
+            if (record.date && Object.keys(record).length > 1) {
+              records.push(record);
+            }
           }
-          if (records.length > 0) {
-            let saved = 0;
-            for (const rec of records) if (await safeSaveRecord(rec)) saved++;
-            if (saved > 0 && !hasShownSuccessRef.current) {
-              hasShownSuccessRef.current = true;
-              showToast(`✅ ${t('importSuccess')} ${saved} ${t('records')}`, 'success');
+          
+          if (records.length === 0) {
+            showToast(`❌ 未找到有效记录`, 'error');
+          } else {
+            let savedCount = 0;
+            for (const rec of records) {
+              if (await safeSaveRecord(rec)) savedCount++;
+            }
+            if (savedCount > 0) {
+              showToast(`✅ ${t('importSuccess')} ${savedCount} ${t('records')}`, 'success');
               setUploadStatus('success');
-            } else if (saved === 0) showToast(`❌ ${t('importFailed')}`, 'error');
-          } else showToast(`❌ ${t('invalidFile')}`, 'error');
-          setTimeout(() => { setUploadStatus('idle'); setFileName(''); }, 2000);
+              setTimeout(() => {
+                setUploadStatus('idle');
+                setFileName('');
+              }, 2000);
+            } else {
+              showToast(`❌ 导入失败`, 'error');
+              setUploadStatus('error');
+            }
+          }
         } catch (err) {
-          console.error(err);
-          if (!hasShownSuccessRef.current) showToast(`❌ ${t('importFailed')}`, 'error');
+          console.error('CSV解析错误:', err);
+          showToast(`❌ ${t('importFailed')}`, 'error');
           setUploadStatus('error');
-        } finally { isImportingRef.current = false; }
+        } finally {
+          isImportingRef.current = false;
+        }
       };
-      reader.onerror = () => { showToast(`❌ ${t('uploadFailed')}`, 'error'); setUploadStatus('error'); isImportingRef.current = false; };
+      reader.onerror = () => {
+        showToast(`❌ ${t('uploadFailed')}`, 'error');
+        setUploadStatus('error');
+        isImportingRef.current = false;
+      };
       reader.readAsText(file, 'UTF-8');
-    } else setUploadStatus('error');
+    } else {
+      setUploadStatus('error');
+    }
   };
 
   const handleDataChange = (key: keyof HealthRecord, value: string) => {

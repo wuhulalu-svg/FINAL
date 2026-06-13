@@ -1,9 +1,9 @@
-import { Activity, LayoutDashboard, Upload, BarChart3, MessageSquare, Bell, Settings, UserCircle, LogOut, Database, Users, Shield } from 'lucide-react';
+import { Activity, LayoutDashboard, Upload, BarChart3, MessageSquare, Bell, Settings, UserCircle, LogOut, Database, Users, Shield, FileText, FileBarChart } from 'lucide-react';
 import { Page, User } from '../App';
 import { ThemeToggle } from './ThemeToggle';
 import { motion } from 'framer-motion';
 import { useLanguage } from '../context/LanguageContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface NavigationProps {
   currentPage: Page;
@@ -13,20 +13,112 @@ interface NavigationProps {
   unreadAlertsCount: number;
 }
 
+// API 基础地址
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
 const navItems = [
   { id: 'dashboard' as Page, icon: LayoutDashboard, color: 'text-indigo-500', labelKey: 'dashboard' },
   { id: 'records' as Page, icon: Database, color: 'text-teal-500', labelKey: 'dataRecords' },
   { id: 'square' as Page, icon: Users, color: 'text-emerald-500', labelKey: 'healthSquare' },
   { id: 'import' as Page, icon: Upload, color: 'text-purple-500', labelKey: 'importData' },
   { id: 'analysis' as Page, icon: BarChart3, color: 'text-green-500', labelKey: 'healthAnalysis' },
+  { id: 'reports' as Page, icon: FileText, color: 'text-orange-500', labelKey: 'medicalReports' },
+  { id: 'summary' as Page, icon: FileBarChart, color: 'text-blue-500', labelKey: 'healthSummary' },
   { id: 'assistant' as Page, icon: MessageSquare, color: 'text-pink-500', labelKey: 'aiAssistant' },
   { id: 'alerts' as Page, icon: Bell, color: 'text-red-500', labelKey: 'alerts' },
-  { id: 'settings' as Page, icon: Settings, color: 'text-gray-500', labelKey: 'settings' },
-  { id: 'profile' as Page, icon: UserCircle, color: 'text-cyan-500', labelKey: 'profile' },
 ];
 
 // 管理员专属菜单项
 const adminNavItem = { id: 'admin' as Page, icon: Shield, color: 'text-purple-500', labelKey: 'adminPanel' };
+
+// 用户下拉菜单组件
+function UserDropdown({ user, onNavigate, onLogout, isAdmin }: { 
+  user: User | null; 
+  onNavigate: (page: Page) => void; 
+  onLogout: () => void;
+  isAdmin: boolean;
+}) {
+  const { t, language } = useLanguage();
+  const isZh = language === 'zh';
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+      >
+        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+          {user?.name?.charAt(0) || 'U'}
+        </div>
+        <div className="flex-1 text-left">
+          <p className="text-sm font-semibold text-gray-800 dark:text-white">{user?.name}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</p>
+          {isAdmin && (
+            <span className="text-xs text-purple-600 dark:text-purple-400 mt-0.5 inline-block">
+              👑 {isZh ? '管理员' : 'Admin'}
+            </span>
+          )}
+        </div>
+      </button>
+
+      {/* 下拉菜单 - 向下展开 */}
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
+          <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+            <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</p>
+          </div>
+          
+          <button
+            onClick={() => {
+              setIsOpen(false);
+              onNavigate('profile');
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
+          >
+            <UserCircle size={18} className="text-indigo-500" />
+            <span className="text-sm">{isZh ? '个人资料' : 'Profile'}</span>
+          </button>
+          
+          <button
+            onClick={() => {
+              setIsOpen(false);
+              onNavigate('settings');
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
+          >
+            <Settings size={18} className="text-green-500" />
+            <span className="text-sm">{isZh ? '健康目标' : 'Health Goals'}</span>
+          </button>
+          
+          <div className="border-t border-gray-200 dark:border-gray-700"></div>
+          
+          <button
+            onClick={() => {
+              setIsOpen(false);
+              onLogout();
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors text-left text-red-600"
+          >
+            <LogOut size={18} />
+            <span className="text-sm">{isZh ? '退出登录' : 'Logout'}</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Navigation({ currentPage, onNavigate, onLogout, user, unreadAlertsCount }: NavigationProps) {
   const { t, language, setLanguage } = useLanguage();
@@ -43,7 +135,7 @@ export function Navigation({ currentPage, onNavigate, onLogout, user, unreadAler
           return;
         }
         
-        const response = await fetch('http://localhost:3001/api/auth/me', {
+        const response = await fetch(`${API_BASE}/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -97,21 +189,9 @@ export function Navigation({ currentPage, onNavigate, onLogout, user, unreadAler
           </div>
         </div>
 
-        <div className="mx-4 mt-6 p-4 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 border border-indigo-100 dark:border-indigo-800/30">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg shadow-lg">
-              {user?.name?.charAt(0) || 'U'}
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-800 dark:text-white">{user?.name}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</p>
-              {isAdmin && (
-                <span className="text-xs text-purple-600 dark:text-purple-400 mt-0.5 inline-block">
-                  👑 管理员
-                </span>
-              )}
-            </div>
-          </div>
+        {/* 用户下拉菜单 */}
+        <div className="mx-4 mt-6">
+          <UserDropdown user={user} onNavigate={onNavigate} onLogout={onLogout} isAdmin={isAdmin} />
         </div>
 
         <nav className="p-4 mt-4 h-[calc(100%-280px)] overflow-y-auto">
@@ -175,13 +255,6 @@ export function Navigation({ currentPage, onNavigate, onLogout, user, unreadAler
               {language === 'zh' ? 'EN' : '中文'}
             </button>
           </div>
-          <button
-            onClick={onLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-xl transition-colors group"
-          >
-            <LogOut size={20} />
-            <span className="text-sm font-medium">{t('logout')}</span>
-          </button>
         </div>
       </div>
     </>

@@ -1,6 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const pool = require('../db');   // 改用 pool
+const db = require('../db');
 const { sendVerificationCode } = require('../config/email');
 const router = express.Router();
 
@@ -13,17 +13,19 @@ function generateCode() {
 }
 
 // 发送验证码
-router.post('/send-code', async (req, res) => {
+router.post('/send-code', (req, res) => {
     const { email } = req.body;
 
     if (!email) {
         return res.status(400).json({ error: '邮箱不能为空' });
     }
 
-    try {
-        // 检查用户是否存在
-        const result = await pool.query('SELECT id, email FROM users WHERE email = $1', [email]);
-        const user = result.rows[0];
+    // 检查用户是否存在
+    db.get('SELECT id, email FROM users WHERE email = ?', [email], async (err, user) => {
+        if (err) {
+            console.error('发送验证码失败:', err);
+            return res.status(500).json({ error: '服务器错误' });
+        }
 
         if (!user) {
             return res.status(404).json({ error: '该邮箱未注册' });
@@ -40,23 +42,24 @@ router.post('/send-code', async (req, res) => {
 
         console.log(`验证码已生成: ${email} -> ${code}`);
 
-        // 发送邮件
-        const sent = await sendVerificationCode(email, code);
+        try {
+            // 发送邮件
+            const sent = await sendVerificationCode(email, code);
 
-        if (sent) {
-            res.json({ success: true, message: '验证码已发送，请查收邮件' });
-        } else {
-            res.status(500).json({ error: '邮件发送失败，请稍后再试' });
+            if (sent) {
+                res.json({ success: true, message: '验证码已发送，请查收邮件' });
+            } else {
+                res.status(500).json({ error: '邮件发送失败，请稍后再试' });
+            }
+        } catch (error) {
+            console.error('发送邮件失败:', error);
+            res.status(500).json({ error: '邮件发送失败' });
         }
-
-    } catch (error) {
-        console.error('发送验证码失败:', error);
-        res.status(500).json({ error: '服务器错误' });
-    }
+    });
 });
 
 // 验证验证码（只验证，不删除）
-router.post('/verify-code', async (req, res) => {
+router.post('/verify-code', (req, res) => {
     const { email, code } = req.body;
 
     if (!email || !code) {
@@ -83,7 +86,7 @@ router.post('/verify-code', async (req, res) => {
 });
 
 // 重置密码（同时验证并删除验证码）
-router.post('/reset', async (req, res) => {
+router.post('/reset', (req, res) => {
     const { email, code, newPassword } = req.body;
 
     if (!email || !code || !newPassword) {
@@ -94,39 +97,43 @@ router.post('/reset', async (req, res) => {
         return res.status(400).json({ error: '密码长度不能少于6位' });
     }
 
-    try {
-        // 验证验证码
-        const record = verificationCodes.get(email);
+    // 验证验证码
+    const record = verificationCodes.get(email);
 
-        if (!record) {
-            return res.status(400).json({ error: '验证码已过期，请重新获取' });
+    if (!record) {
+        return res.status(400).json({ error: '验证码已过期，请重新获取' });
+    }
+
+    if (record.expires < Date.now()) {
+        verificationCodes.delete(email);
+        return res.status(400).json({ error: '验证码已过期，请重新获取' });
+    }
+
+    if (record.code !== code) {
+        return res.status(400).json({ error: '验证码错误' });
+    }
+
+    // 加密新密码
+    bcrypt.hash(newPassword, 10, (err, hashedPassword) => {
+        if (err) {
+            console.error('加密密码失败:', err);
+            return res.status(500).json({ error: '服务器错误' });
         }
-
-        if (record.expires < Date.now()) {
-            verificationCodes.delete(email);
-            return res.status(400).json({ error: '验证码已过期，请重新获取' });
-        }
-
-        if (record.code !== code) {
-            return res.status(400).json({ error: '验证码错误' });
-        }
-
-        // 加密新密码
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
 
         // 更新密码
-        await pool.query('UPDATE users SET password = $1 WHERE email = $2', [hashedPassword, email]);
+        db.run('UPDATE users SET password = ? WHERE email = ?', [hashedPassword, email], function(err) {
+            if (err) {
+                console.error('重置密码失败:', err);
+                return res.status(500).json({ error: '服务器错误' });
+            }
 
-        // 重置成功后删除验证码记录
-        verificationCodes.delete(email);
+            // 重置成功后删除验证码记录
+            verificationCodes.delete(email);
 
-        console.log(`✅ 密码重置成功: ${email}`);
-        res.json({ success: true, message: '密码重置成功' });
-
-    } catch (error) {
-        console.error('重置密码失败:', error);
-        res.status(500).json({ error: '服务器错误' });
-    }
+            console.log(`✅ 密码重置成功: ${email}`);
+            res.json({ success: true, message: '密码重置成功' });
+        });
+    });
 });
 
 module.exports = router;
