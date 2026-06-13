@@ -21,12 +21,15 @@ const healthSummaryRoutes = require('./routes/healthSummary');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// ✅ CORS 配置：允许本地开发和 Vercel 前端域名
+// ✅ CORS 配置：允许本地开发 + 所有 Vercel 域名（包括预览和正式域名）
 const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:5173',
     'https://final-hazel-seven-39.vercel.app',
-    'http://final-hazel-seven-39.vercel.app'  // 添加 http 版本（兼容性）
+    'http://final-hazel-seven-39.vercel.app',
+    // 允许所有 Vercel 预览域名（正则匹配）
+    /^https:\/\/final.*\.vercel\.app$/,
+    /^https:\/\/.*\.vercel\.app$/  // 更宽松：允许所有 Vercel 子域名
 ];
 
 app.use(cors({
@@ -34,18 +37,21 @@ app.use(cors({
         // 允许没有 origin 的请求（如 Postman、服务器间调用）
         if (!origin) return callback(null, true);
         
-        // 检查是否在白名单中（支持去掉尾部斜杠的匹配）
+        // 检查是否在白名单中（支持字符串和正则表达式）
         let isAllowed = false;
         for (let allowed of allowedOrigins) {
-            // 精确匹配
-            if (origin === allowed) {
-                isAllowed = true;
-                break;
-            }
-            // 去掉尾部斜杠后匹配
-            if (origin.replace(/\/$/, '') === allowed) {
-                isAllowed = true;
-                break;
+            if (allowed instanceof RegExp) {
+                // 正则匹配
+                if (allowed.test(origin)) {
+                    isAllowed = true;
+                    break;
+                }
+            } else {
+                // 字符串匹配（精确匹配 + 去掉尾部斜杠）
+                if (origin === allowed || origin.replace(/\/$/, '') === allowed) {
+                    isAllowed = true;
+                    break;
+                }
             }
         }
         
