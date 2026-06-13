@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Activity, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 
+// API 基础地址
+const API_BASE = 'https://final-production-4362.up.railway.app/api';
+
 interface LoginProps {
   onLogin: (email: string, password: string) => Promise<boolean>;
   onShowRegister: () => void;
@@ -54,7 +57,7 @@ export function Login({ onLogin, onShowRegister }: LoginProps) {
     setResetError('');
     
     try {
-     const response = await fetch('https://final-production-4362.up.railway.app/api/password/send-code', {
+     const response = await fetch(`${API_BASE}/password/send-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: resetEmail })
@@ -97,7 +100,7 @@ export function Login({ onLogin, onShowRegister }: LoginProps) {
     setResetError('');
     
     try {
-      const response = await fetch('http://localhost:3001/api/password/verify-code', {
+      const response = await fetch(`${API_BASE}/password/verify-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: resetEmail, code: resetCode })
@@ -139,7 +142,7 @@ export function Login({ onLogin, onShowRegister }: LoginProps) {
     setResetError('');
     
     try {
-      const response = await fetch('http://localhost:3001/api/password/reset', {
+      const response = await fetch(`${API_BASE}/password/reset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
