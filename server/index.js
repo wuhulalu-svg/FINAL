@@ -29,7 +29,7 @@ const PORT = process.env.PORT || 3001;
 const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:5173',
-    'https://你的前端项目名.vercel.app'   // 请替换成你的实际 Vercel 前端域名
+    'https://final-hazel-seven-39.vercel.app'   // 已替换为你的实际 Vercel 前端域名
 ];
 
 app.use(cors({
