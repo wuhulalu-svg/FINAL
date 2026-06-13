@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:3001/api';
+const API_URL = 'https://final-production-4362.up.railway.app/api';
 
 // 存储token
 let authToken: string | null = localStorage.getItem('token');
