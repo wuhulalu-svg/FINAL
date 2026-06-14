@@ -269,210 +269,186 @@ export function DataImport({ user, onAddRecord, healthRecords }: DataImportProps
     }
   };
 
-  const handleFile = async (file: File) => {
-    if (isImportingRef.current) return;
-    hasShownSuccessRef.current = false;
-    setFileName(file.name);
-    setUploadStatus('idle');
-    setExtractedData(null);
-    setOcrError(null);
-    setOcrProgress(0);
-    
-    if (file.type.startsWith('image/')) {
-      setUploadType('image');
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreview(reader.result as string);
-      reader.readAsDataURL(file);
-      setRecognizing(true);
-      const data = await performOCR(file);
-      setExtractedData(data);
-      if (data.date) setSelectedDate(String(data.date));
-      setRecognizing(false);
-      setUploadStatus('success');
-      const count = Object.keys(data).filter(k => k !== 'date' && data[k] !== undefined && data[k] !== '').length;
-      if (count === 0) setOcrError(t('extractFailed'));
-    } 
-    // ==================== CSV 处理（支持双引号包裹的行） ====================
-  // ==================== CSV 处理（支持 CSV + TSV + Excel导出格式） ====================
-else if (file.name.endsWith('.csv')) {
-  setUploadType('csv');
-  isImportingRef.current = true;
+ const handleFile = async (file: File) => {
+  if (isImportingRef.current) return;
+  hasShownSuccessRef.current = false;
+  setFileName(file.name);
+  setUploadStatus('idle');
+  setExtractedData(null);
+  setOcrError(null);
+  setOcrProgress(0);
 
-  const reader = new FileReader();
+  if (file.type.startsWith('image/')) {
+    setUploadType('image');
+    const reader = new FileReader();
+    reader.onloadend = () => setImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
 
-  reader.onload = async (e) => {
-    try {
-      const content = e.target?.result as string;
+    setRecognizing(true);
+    const data = await performOCR(file);
+    setExtractedData(data);
 
-      const lines = content
-        .split(/\r?\n/)
-        .map(l => l.trim())
-        .filter(l => l.length > 0);
+    if (data.date) setSelectedDate(String(data.date));
 
-      if (lines.length < 2) {
-        showToast(`❌ ${t('invalidFile')}`, 'error');
-        return;
-      }
+    setRecognizing(false);
+    setUploadStatus('success');
 
-      // ==================== 1. 统一 delimiter（关键修复） ====================
-      const headerLine = lines[0].replace(/^"|"$/g, '');
-      const delimiter = headerLine.includes('\t') ? '\t' : ',';
+    const count = Object.keys(data).filter(
+      k => k !== 'date' && data[k] !== undefined && data[k] !== ''
+    ).length;
 
-      const rawHeaders = headerLine
-        .split(delimiter)
-        .map(h => h.trim().toLowerCase());
+    if (count === 0) setOcrError(t('extractFailed'));
+  }
 
-      // ==================== 2. 字段映射 ====================
-      const columnMapping: Record<string, string> = {
-        date: 'date',
-        steps: 'steps',
-        calories: 'calories',
+  // ==================== CSV 处理 ====================
+  else if (file.name.endsWith('.csv')) {
+    setUploadType('csv');
+    isImportingRef.current = true;
 
-        heart_rate: 'heartRate',
-        heartrate: 'heartRate',
+    const reader = new FileReader();
 
-        sleep_level: 'sleepLevel',
-        sleepscore: 'sleepLevel',
+    reader.onload = async (e) => {
+      try {
+        const content = e.target?.result as string;
 
-        weight: 'weight',
-        bmi: 'bmi',
+        const lines = content
+          .split(/\r?\n/)
+          .map(l => l.trim())
+          .filter(l => l.length > 0);
 
-        body_fat: 'bodyFat',
-        bodyfat: 'bodyFat',
-
-        body_water: 'bodyWater',
-        bodywater: 'bodyWater',
-
-        muscle_mass: 'muscleMass',
-        musclemass: 'muscleMass',
-
-        blood_pressure: 'bloodPressure',
-        bloodpressure: 'bloodPressure',
-
-        blood_sugar: 'bloodSugar',
-        bloodsugar: 'bloodSugar'
-      };
-
-      const fieldIndexMap: { index: number; field: string }[] = [];
-
-      rawHeaders.forEach((header, idx) => {
-        const mapped = columnMapping[header];
-        if (mapped) {
-          fieldIndexMap.push({ index: idx, field: mapped });
+        if (lines.length < 2) {
+          showToast(`❌ ${t('invalidFile')}`, 'error');
+          return;
         }
-      });
 
-      if (fieldIndexMap.length === 0) {
-        showToast(`❌ 未找到可识别的列，请检查表头`, 'error');
-        return;
-      }
+        const headerLine = lines[0].replace(/^"|"$/g, '');
+        const delimiter = headerLine.includes('\t') ? '\t' : ',';
 
-      // ==================== 3. 逐行解析（修复错位风险） ====================
-      const records: HealthRecord[] = [];
-
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i];
-        if (!line) continue;
-
-        const values = line
-          .replace(/^"|"$/g, '')
+        const rawHeaders = headerLine
           .split(delimiter)
-          .map(v => v.trim());
+          .map(h => h.trim().toLowerCase());
 
-        const record: HealthRecord = {} as HealthRecord;
+        const columnMapping: Record<string, string> = {
+          date: 'date',
+          steps: 'steps',
+          calories: 'calories',
+          heart_rate: 'heartRate',
+          heartrate: 'heartRate',
+          sleep_level: 'sleepLevel',
+          sleepscore: 'sleepLevel',
+          weight: 'weight',
+          bmi: 'bmi',
+          body_fat: 'bodyFat',
+          bodyfat: 'bodyFat',
+          body_water: 'bodyWater',
+          bodywater: 'bodyWater',
+          muscle_mass: 'muscleMass',
+          musclemass: 'muscleMass',
+          blood_pressure: 'bloodPressure',
+          bloodpressure: 'bloodPressure',
+          blood_sugar: 'bloodSugar',
+          bloodsugar: 'bloodSugar'
+        };
 
-        for (const { index, field } of fieldIndexMap) {
-          if (index >= values.length) continue;
+        const fieldIndexMap: { index: number; field: string }[] = [];
 
-          const rawValue = values[index];
-          if (!rawValue) continue;
+        rawHeaders.forEach((header, idx) => {
+          const mapped = columnMapping[header];
+          if (mapped) fieldIndexMap.push({ index: idx, field: mapped });
+        });
 
-          // ==================== date ====================
-          if (field === 'date') {
-            let dateStr = rawValue.replace(/\//g, '-').trim();
+        if (fieldIndexMap.length === 0) {
+          showToast(`❌ 未找到可识别的列，请检查表头`, 'error');
+          return;
+        }
 
-            const parts = dateStr.split('-');
-            if (parts.length === 3) {
-              const year = parts[0];
-              const month = parts[1].padStart(2, '0');
-              const day = parts[2].padStart(2, '0');
-              record.date = `${year}-${month}-${day}`;
+        const records: HealthRecord[] = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i];
+          if (!line) continue;
+
+          const values = line
+            .replace(/^"|"$/g, '')
+            .split(delimiter)
+            .map(v => v.trim());
+
+          const record: HealthRecord = {} as HealthRecord;
+
+          for (const { index, field } of fieldIndexMap) {
+            const rawValue = values[index];
+            if (!rawValue) continue;
+
+            if (field === 'date') {
+              let dateStr = rawValue.replace(/\//g, '-').trim();
+              const parts = dateStr.split('-');
+
+              if (parts.length === 3) {
+                record.date = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+              } else {
+                record.date = dateStr;
+              }
+            } else if (field === 'bloodPressure') {
+              if (rawValue.includes('/')) {
+                record.bloodPressure = rawValue.trim();
+              }
             } else {
-              record.date = dateStr;
+              const num = parseFloat(rawValue);
+              if (!isNaN(num)) {
+                (record as any)[field] = num;
+              }
             }
           }
 
-          // ==================== blood pressure ====================
-          else if (field === 'bloodPressure') {
-            if (rawValue.includes('/')) {
-              record.bloodPressure = rawValue.trim();
-            }
-          }
+          const hasData = Object.keys(record).some(
+            k => k !== 'date' && (record as any)[k] !== undefined
+          );
 
-          // ==================== numeric fields ====================
-          else {
-            const num = parseFloat(rawValue);
-            if (!isNaN(num)) {
-              (record as any)[field] = num;
-            }
+          if (record.date && hasData) {
+            records.push(record);
           }
         }
 
-        // ==================== 4. 更安全的判断 ====================
-        const hasData = Object.keys(record).some(
-          k => k !== 'date' && (record as any)[k] !== undefined
-        );
-
-        if (record.date && hasData) {
-          records.push(record);
-        }
-      }
-
-      // ==================== 5. 保存 ====================
-      if (records.length === 0) {
-        showToast(`❌ 未找到有效记录`, 'error');
-      } else {
-        let savedCount = 0;
-
-        for (const rec of records) {
-          if (await safeSaveRecord(rec)) {
-            savedCount++;
-          }
-        }
-
-        if (savedCount > 0) {
-          showToast(`✅ ${t('importSuccess')} ${savedCount} ${t('records')}`, 'success');
-
-          setUploadStatus('success');
-
-          setTimeout(() => {
-            setUploadStatus('idle');
-            setFileName('');
-          }, 2000);
+        if (records.length === 0) {
+          showToast(`❌ 未找到有效记录`, 'error');
         } else {
-          showToast(`❌ 导入失败`, 'error');
-          setUploadStatus('error');
+          let savedCount = 0;
+
+          for (const rec of records) {
+            if (await safeSaveRecord(rec)) savedCount++;
+          }
+
+          if (savedCount > 0) {
+            showToast(`✅ ${t('importSuccess')} ${savedCount} ${t('records')}`, 'success');
+            setUploadStatus('success');
+
+            setTimeout(() => {
+              setUploadStatus('idle');
+              setFileName('');
+            }, 2000);
+          } else {
+            showToast(`❌ 导入失败`, 'error');
+            setUploadStatus('error');
+          }
         }
+      } catch (err) {
+        console.error('CSV解析错误:', err);
+        showToast(`❌ ${t('importFailed')}`, 'error');
+        setUploadStatus('error');
+      } finally {
+        isImportingRef.current = false;
       }
+    };
 
-    } catch (err) {
-      console.error('CSV解析错误:', err);
-      showToast(`❌ ${t('importFailed')}`, 'error');
+    reader.onerror = () => {
+      showToast(`❌ ${t('uploadFailed')}`, 'error');
       setUploadStatus('error');
-    } finally {
       isImportingRef.current = false;
-    }
-  };
+    };
 
-  reader.onerror = () => {
-    showToast(`❌ ${t('uploadFailed')}`, 'error');
-    setUploadStatus('error');
-    isImportingRef.current = false;
-  };
-
-  reader.readAsText(file, 'UTF-8');
-}
-
+    reader.readAsText(file, 'UTF-8');
+  }
+}; // ✅ 就是这里：缺的闭合已补上
   const handleDataChange = (key: keyof HealthRecord, value: string) => {
     setExtractedData(prev => ({ ...prev, [key]: value === '' ? undefined : value }));
   };
