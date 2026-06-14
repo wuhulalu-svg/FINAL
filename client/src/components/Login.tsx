@@ -189,12 +189,7 @@ export function Login({ onLogin, onShowRegister }: LoginProps) {
               <p className="text-gray-600">Sign in to view your health data</p>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8">
-              <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-                <p className="text-sm text-blue-800 mb-2 font-medium">Demo Account:</p>
-                <p className="text-xs text-blue-700">Email: demo@health.com</p>
-                <p className="text-xs text-blue-700">Password: demo123</p>
-              </div>
+           
 
               {error && (
                 <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
