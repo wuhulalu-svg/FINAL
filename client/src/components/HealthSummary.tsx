@@ -105,6 +105,29 @@ export function HealthSummary({ user }: any) {
     
     const token = localStorage.getItem('token');
     
+    // 翻译报告标题（周报/月报/年报）
+    const translateTitle = (report: HealthReport): string => {
+        if (isZh) return report.title;
+        
+        const date = new Date(report.report_date);
+        const year = date.getFullYear();
+        
+        if (report.report_type === 'week') {
+            // 从中文标题提取周数，例如 "2026年第24周" -> 24
+            const weekMatch = report.title.match(/第(\d+)周/);
+            const weekNum = weekMatch ? weekMatch[1] : '';
+            return `Week ${weekNum}, ${year}`;
+        } else if (report.report_type === 'month') {
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const month = date.getMonth();
+            return `${monthNames[month]} ${year}`;
+        } else if (report.report_type === 'year') {
+            return `${year}`;
+        }
+        
+        return report.title;
+    };
+    
     const loadReports = async () => {
         try {
             setLoading(true);
@@ -225,7 +248,7 @@ export function HealthSummary({ user }: any) {
                                             <div>
                                                 <div className="flex items-center gap-2 mb-2">
                                                     <span className={`px-2 py-1 text-xs rounded-full ${getTypeColor(r.report_type)}`}>{getTypeName(r.report_type)}</span>
-                                                    <h3 className="font-semibold">{r.title}</h3>
+                                                    <h3 className="font-semibold">{translateTitle(r)}</h3>
                                                 </div>
                                                 <p className="text-sm text-gray-600">{r.summary}</p>
                                                 <p className="text-xs text-gray-400 mt-2">{new Date(r.report_date).toLocaleDateString()}</p>
@@ -249,7 +272,7 @@ export function HealthSummary({ user }: any) {
                                             <div>
                                                 <div className="flex items-center gap-2 mb-2">
                                                     <span className={`px-2 py-1 text-xs rounded-full ${getTypeColor(r.report_type)}`}>{getTypeName(r.report_type)}</span>
-                                                    <h3 className="font-semibold">{r.title}</h3>
+                                                    <h3 className="font-semibold">{translateTitle(r)}</h3>
                                                 </div>
                                                 <p className="text-sm text-gray-600">{r.summary}</p>
                                                 <p className="text-xs text-gray-400 mt-2">{new Date(r.report_date).toLocaleDateString()}</p>
@@ -273,7 +296,7 @@ export function HealthSummary({ user }: any) {
                                             <div>
                                                 <div className="flex items-center gap-2 mb-2">
                                                     <span className={`px-2 py-1 text-xs rounded-full ${getTypeColor(r.report_type)}`}>{getTypeName(r.report_type)}</span>
-                                                    <h3 className="font-semibold">{r.title}</h3>
+                                                    <h3 className="font-semibold">{translateTitle(r)}</h3>
                                                 </div>
                                                 <p className="text-sm text-gray-600">{r.summary}</p>
                                                 <p className="text-xs text-gray-400 mt-2">{new Date(r.report_date).toLocaleDateString()}</p>
@@ -295,7 +318,7 @@ export function HealthSummary({ user }: any) {
                         <div className="sticky top-0 bg-white p-4 border-b flex justify-between items-center">
                             <div>
                                 <span className={`px-2 py-1 text-xs rounded-full ${getTypeColor(selectedReport.report_type)}`}>{getTypeName(selectedReport.report_type)}</span>
-                                <h2 className="text-xl font-bold mt-1">{selectedReport.title}</h2>
+                                <h2 className="text-xl font-bold mt-1">{translateTitle(selectedReport)}</h2>
                                 <p className="text-xs text-gray-400 mt-1">{new Date(selectedReport.report_date).toLocaleDateString()}</p>
                             </div>
                             <button onClick={() => setSelectedReport(null)} className="text-gray-500 text-xl">✕</button>
