@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { FileText, Calendar, TrendingUp, TrendingDown, CheckCircle, AlertTriangle, Activity, Sparkles, Heart } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
+// API 基础地址
+const API_BASE = 'https://final-production-4362.up.railway.app/api';
+
 interface HealthReport {
     id: number;
     report_type: string;
@@ -100,7 +103,6 @@ export function HealthSummary({ user }: any) {
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
     
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
     const token = localStorage.getItem('token');
     
     const loadReports = async () => {
