@@ -293,147 +293,194 @@ export function DataImport({ user, onAddRecord, healthRecords }: DataImportProps
       if (count === 0) setOcrError(t('extractFailed'));
     } 
     // ==================== CSV 处理（支持双引号包裹的行） ====================
-    else if (file.name.endsWith('.csv')) {
-      setUploadType('csv');
-      isImportingRef.current = true;
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const content = e.target?.result as string;
-          const lines = content.split(/\r?\n/).filter(line => line.trim().length > 0);
-          if (lines.length < 2) {
-            showToast(`❌ ${t('invalidFile')}`, 'error');
-            return;
-          }
+  // ==================== CSV 处理（支持 CSV + TSV + Excel导出格式） ====================
+else if (file.name.endsWith('.csv')) {
+  setUploadType('csv');
+  isImportingRef.current = true;
 
-          // 解析表头：第一行第一个双引号内的内容（例如 "date,steps,calories,..."）
-          let headerLine = lines[0];
-          let headerMatch = headerLine.match(/^"([^"]+)"|^([^,]+)/);
-          let headerStr = headerMatch ? (headerMatch[1] || headerMatch[2]) : '';
-          if (!headerStr) {
-            showToast(`❌ 无法解析表头`, 'error');
-            return;
-          }
-          const rawHeaders = headerStr.split(',').map(h => h.trim().toLowerCase());
-          
-          const columnMapping: Record<string, string> = {
-            'date': 'date',
-            'steps': 'steps',
-            'calories': 'calories',
-            'heart_rate': 'heartRate',
-            'heartrate': 'heartRate',
-            'sleep_level': 'sleepLevel',
-            'sleepscore': 'sleepLevel',
-            'weight': 'weight',
-            'bmi': 'bmi',
-            'body_fat': 'bodyFat',
-            'bodyfat': 'bodyFat',
-            'body_water': 'bodyWater',
-            'bodywater': 'bodyWater',
-            'muscle_mass': 'muscleMass',
-            'musclemass': 'muscleMass',
-            'blood_pressure': 'bloodPressure',
-            'bloodpressure': 'bloodPressure',
-            'blood_sugar': 'bloodSugar',
-            'bloodsugar': 'bloodSugar'
-          };
-          
-          const fieldIndexMap: { index: number; field: string }[] = [];
-          rawHeaders.forEach((header, idx) => {
-            const mapped = columnMapping[header];
-            if (mapped) {
-              fieldIndexMap.push({ index: idx, field: mapped });
-            }
-          });
-          
-          if (fieldIndexMap.length === 0) {
-            showToast(`❌ 未找到可识别的列，请检查表头`, 'error');
-            return;
-          }
+  const reader = new FileReader();
 
-          const records: HealthRecord[] = [];
-          for (let i = 1; i < lines.length; i++) {
-            const line = lines[i];
-            if (!line.trim()) continue;
-            
-            // 提取第一个双引号内的内容（如果存在），否则取整行
-            let dataStr = line;
-            const quoteMatch = line.match(/^"([^"]+)"/);
-            if (quoteMatch) {
-              dataStr = quoteMatch[1];
-            }
-            
-            const values = dataStr.split(',').map(v => v.trim());
-            const record: HealthRecord = {};
-            
-            for (const { index, field } of fieldIndexMap) {
-              if (index >= values.length) continue;
-              let rawValue = values[index];
-              if (rawValue === undefined || rawValue === '') continue;
-              
-              if (field === 'date') {
-                let dateStr = rawValue.replace(/\//g, '-');
-                const parts = dateStr.split('-');
-                if (parts.length === 3) {
-                  const year = parts[0];
-                  const month = parts[1].padStart(2, '0');
-                  const day = parts[2].padStart(2, '0');
-                  record.date = `${year}-${month}-${day}`;
-                } else {
-                  record.date = dateStr;
-                }
-              } else if (field === 'bloodPressure') {
-                if (rawValue.includes('/')) record.bloodPressure = rawValue;
-              } else {
-                const num = parseFloat(rawValue);
-                if (!isNaN(num)) {
-                  (record as any)[field] = num;
-                }
-              }
-            }
-            
-            if (record.date && Object.keys(record).length > 1) {
-              records.push(record);
-            }
-          }
-          
-          if (records.length === 0) {
-            showToast(`❌ 未找到有效记录`, 'error');
-          } else {
-            let savedCount = 0;
-            for (const rec of records) {
-              if (await safeSaveRecord(rec)) savedCount++;
-            }
-            if (savedCount > 0) {
-              showToast(`✅ ${t('importSuccess')} ${savedCount} ${t('records')}`, 'success');
-              setUploadStatus('success');
-              setTimeout(() => {
-                setUploadStatus('idle');
-                setFileName('');
-              }, 2000);
-            } else {
-              showToast(`❌ 导入失败`, 'error');
-              setUploadStatus('error');
-            }
-          }
-        } catch (err) {
-          console.error('CSV解析错误:', err);
-          showToast(`❌ ${t('importFailed')}`, 'error');
-          setUploadStatus('error');
-        } finally {
-          isImportingRef.current = false;
+  reader.onload = async (e) => {
+    try {
+      const content = e.target?.result as string;
+
+      const lines = content
+        .split(/\r?\n/)
+        .filter(line => line.trim().length > 0);
+
+      if (lines.length < 2) {
+        showToast(`❌ ${t('invalidFile')}`, 'error');
+        return;
+      }
+
+      // ==================== 1. 解析表头（支持 CSV / TSV） ====================
+      let headerLine = lines[0];
+
+      let headerMatch = headerLine.match(/^"([^"]+)"|^([^,]+)/);
+      let headerStr = headerMatch ? (headerMatch[1] || headerMatch[2]) : '';
+
+      if (!headerStr) {
+        showToast(`❌ 无法解析表头`, 'error');
+        return;
+      }
+
+      const headerDelimiter = headerStr.includes('\t') ? '\t' : ',';
+
+      const rawHeaders = headerStr
+        .split(headerDelimiter)
+        .map(h => h.trim().toLowerCase());
+
+      // ==================== 2. 字段映射 ====================
+      const columnMapping: Record<string, string> = {
+        'date': 'date',
+        'steps': 'steps',
+        'calories': 'calories',
+
+        'heart_rate': 'heartRate',
+        'heartrate': 'heartRate',
+
+        'sleep_level': 'sleepLevel',
+        'sleepscore': 'sleepLevel',
+
+        'weight': 'weight',
+        'bmi': 'bmi',
+
+        'body_fat': 'bodyFat',
+        'bodyfat': 'bodyFat',
+
+        'body_water': 'bodyWater',
+        'bodywater': 'bodyWater',
+
+        'muscle_mass': 'muscleMass',
+        'musclemass': 'muscleMass',
+
+        'blood_pressure': 'bloodPressure',
+        'bloodpressure': 'bloodPressure',
+
+        'blood_sugar': 'bloodSugar',
+        'bloodsugar': 'bloodSugar'
+      };
+
+      const fieldIndexMap: { index: number; field: string }[] = [];
+
+      rawHeaders.forEach((header, idx) => {
+        const mapped = columnMapping[header];
+        if (mapped) {
+          fieldIndexMap.push({ index: idx, field: mapped });
         }
-      };
-      reader.onerror = () => {
-        showToast(`❌ ${t('uploadFailed')}`, 'error');
-        setUploadStatus('error');
-        isImportingRef.current = false;
-      };
-      reader.readAsText(file, 'UTF-8');
-    } else {
+      });
+
+      if (fieldIndexMap.length === 0) {
+        showToast(`❌ 未找到可识别的列，请检查表头`, 'error');
+        return;
+      }
+
+      // ==================== 3. 逐行解析 ====================
+      const records: HealthRecord[] = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line.trim()) continue;
+
+        let dataStr = line;
+
+        // 处理可能的双引号包裹
+        const quoteMatch = line.match(/^"([^"]+)"/);
+        if (quoteMatch) {
+          dataStr = quoteMatch[1];
+        }
+
+        const delimiter = dataStr.includes('\t') ? '\t' : ',';
+        const values = dataStr.split(delimiter).map(v => v.trim());
+
+        const record: HealthRecord = {} as HealthRecord;
+
+        for (const { index, field } of fieldIndexMap) {
+          if (index >= values.length) continue;
+
+          let rawValue = values[index];
+          if (rawValue === undefined || rawValue === '') continue;
+
+          // ==================== date 处理 ====================
+          if (field === 'date') {
+            let dateStr = rawValue.replace(/\//g, '-').trim();
+
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+              const year = parts[0];
+              const month = parts[1].padStart(2, '0');
+              const day = parts[2].padStart(2, '0');
+              record.date = `${year}-${month}-${day}`;
+            } else {
+              record.date = dateStr;
+            }
+          }
+
+          // ==================== 血压特殊格式 ====================
+          else if (field === 'bloodPressure') {
+            if (rawValue.includes('/')) {
+              record.bloodPressure = rawValue;
+            }
+          }
+
+          // ==================== 数值字段 ====================
+          else {
+            const num = parseFloat(rawValue);
+            if (!isNaN(num)) {
+              (record as any)[field] = num;
+            }
+          }
+        }
+
+        if (record.date && Object.keys(record).length >= 2) {
+          records.push(record);
+        }
+      }
+
+      // ==================== 4. 保存 ====================
+      if (records.length === 0) {
+        showToast(`❌ 未找到有效记录`, 'error');
+      } else {
+        let savedCount = 0;
+
+        for (const rec of records) {
+          if (await safeSaveRecord(rec)) {
+            savedCount++;
+          }
+        }
+
+        if (savedCount > 0) {
+          showToast(`✅ ${t('importSuccess')} ${savedCount} ${t('records')}`, 'success');
+
+          setUploadStatus('success');
+
+          setTimeout(() => {
+            setUploadStatus('idle');
+            setFileName('');
+          }, 2000);
+        } else {
+          showToast(`❌ 导入失败`, 'error');
+          setUploadStatus('error');
+        }
+      }
+
+    } catch (err) {
+      console.error('CSV解析错误:', err);
+      showToast(`❌ ${t('importFailed')}`, 'error');
       setUploadStatus('error');
+    } finally {
+      isImportingRef.current = false;
     }
   };
+
+  reader.onerror = () => {
+    showToast(`❌ ${t('uploadFailed')}`, 'error');
+    setUploadStatus('error');
+    isImportingRef.current = false;
+  };
+
+  reader.readAsText(file, 'UTF-8');
+}
 
   const handleDataChange = (key: keyof HealthRecord, value: string) => {
     setExtractedData(prev => ({ ...prev, [key]: value === '' ? undefined : value }));
