@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { Heart, MessageCircle, Send, Trash2, Image as ImageIcon, X, Calendar } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
+// API 基础地址
+const API_BASE = 'https://final-production-4362.up.railway.app/api';
+
 interface Post {
   id: number;
   user_id: number;
@@ -66,7 +69,7 @@ export function HealthSquare({ userId, userName }: HealthSquareProps) {
 
   const fetchPosts = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/square/posts', {
+      const response = await fetch(`${API_BASE}/square/posts`, {
         headers: { 'Authorization': `Bearer ${getToken()}` }
       });
       const data = await response.json();
@@ -80,7 +83,7 @@ export function HealthSquare({ userId, userName }: HealthSquareProps) {
 
   const fetchComments = async (postId: number) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/square/posts/${postId}/comments`, {
+      const response = await fetch(`${API_BASE}/square/posts/${postId}/comments`, {
         headers: { 'Authorization': `Bearer ${getToken()}` }
       });
       const data = await response.json();
@@ -98,7 +101,7 @@ export function HealthSquare({ userId, userName }: HealthSquareProps) {
     
     setSubmitting(true);
     try {
-      const response = await fetch('http://localhost:3001/api/square/posts', {
+      const response = await fetch(`${API_BASE}/square/posts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -126,7 +129,7 @@ export function HealthSquare({ userId, userName }: HealthSquareProps) {
 
   const handleLike = async (postId: number) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/square/posts/${postId}/like`, {
+      const response = await fetch(`${API_BASE}/square/posts/${postId}/like`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${getToken()}` }
       });
@@ -144,7 +147,7 @@ export function HealthSquare({ userId, userName }: HealthSquareProps) {
     
     setSubmittingComment(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/square/posts/${postId}/comments`, {
+      const response = await fetch(`${API_BASE}/square/posts/${postId}/comments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -173,7 +176,7 @@ export function HealthSquare({ userId, userName }: HealthSquareProps) {
     if (!confirm(t('confirmDelete'))) return;
     
     try {
-      const response = await fetch(`http://localhost:3001/api/square/posts/${postId}`, {
+      const response = await fetch(`${API_BASE}/square/posts/${postId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${getToken()}` }
       });
