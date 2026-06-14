@@ -16,20 +16,19 @@ interface AIAssistantProps {
   healthRecords: HealthRecord[];
 }
 
-// API 基础地址（从环境变量读取，本地开发回退到 localhost）
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// API 基础地址（使用 Railway 后端）
+const API_BASE = 'https://final-production-4362.up.railway.app/api';
 
 export function AIAssistant({ user, healthRecords }: AIAssistantProps) {
   const { t } = useLanguage();
- // 找到 systemPrompt 构建的部分，把开头的问候语改成英文
-const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
       text: `Hello ${user?.name || 'User'}! I am your AI health assistant "Xiao Jian" 👋\n\nI can help you answer health questions, analyze your health data, and provide diet and exercise advice. How can I help you today?`,
       sender: 'ai',
       timestamp: new Date(),
     },
-]);
+  ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
