@@ -3,7 +3,7 @@ const axios = require('axios');
 const router = express.Router();
 
 // 你的 DeepSeek API Key
-const DEEPSEEK_API_KEY = 'sk-ebdb854b667847b399881f9e167dda1b';
+const DEEPSEEK_API_KEY = 'sk-3943c4e09aa34645b5555c14b4e97ff0';
 
 router.post('/analyze', async (req, res) => {
   try {
