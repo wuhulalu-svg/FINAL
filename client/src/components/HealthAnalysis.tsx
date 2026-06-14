@@ -1,5 +1,5 @@
 import { User, HealthRecord } from '../App';
-import { Users, Calendar, BarChart3, Heart, Award, Sparkles, TrendingUp, TrendingDown, Minus, CheckCircle } from 'lucide-react';
+import { Users, Calendar, BarChart3, Heart, Award, Sparkles, TrendingUp, TrendingDown, Minus, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,382 +10,177 @@ interface HealthAnalysisProps {
   healthRecords: HealthRecord[];
 }
 
-// 所有健康指标配置
-const ALL_METRICS = [
-  { key: 'weight', label: 'Weight', unit: 'kg', benchmark: null, getBenchmark: (user: User) => user ? (22 * Math.pow(user.height / 100, 2)) : 70, normalRange: 'BMI 18.5-24.9', higherIsBetter: false },
-  { key: 'bmi', label: 'BMI', unit: '', benchmark: 22, getBenchmark: () => 22, normalRange: '18.5-24.9', higherIsBetter: false },
-  { key: 'body_fat', label: 'Body Fat', unit: '%', benchmark: null, getBenchmark: (user: User) => user?.gender === 'male' ? 15 : 25, normalRange: 'Male 10-20% / Female 20-30%', higherIsBetter: false },
-  { key: 'heart_rate', label: 'Heart Rate', unit: 'bpm', benchmark: null, getBenchmark: (user: User) => user?.gender === 'male' ? 68 : 72, normalRange: '60-100 bpm', higherIsBetter: false },
-  { key: 'blood_pressure', label: 'Blood Pressure', unit: 'mmHg', benchmark: 120, getBenchmark: () => 120, normalRange: '90-120 mmHg', higherIsBetter: false },
-  { key: 'blood_sugar', label: 'Blood Sugar', unit: 'mmol/L', benchmark: 5.0, getBenchmark: () => 5.0, normalRange: '3.9-6.1 mmol/L', higherIsBetter: false },
-  { key: 'muscle_mass', label: 'Muscle Mass', unit: 'kg', benchmark: null, getBenchmark: (user: User) => user?.gender === 'male' ? 40 : 30, normalRange: 'Male 35-45kg / Female 25-35kg', higherIsBetter: true },
-  { key: 'body_water', label: 'Body Water', unit: '%', benchmark: null, getBenchmark: (user: User) => user?.gender === 'male' ? 60 : 55, normalRange: 'Male 55-65% / Female 50-60%', higherIsBetter: true },
-  { key: 'sleep_level', label: 'Sleep Score', unit: 'pts', benchmark: 80, getBenchmark: () => 80, normalRange: '70-100 points', higherIsBetter: true },
-  { key: 'steps', label: 'Steps', unit: 'steps', benchmark: 8000, getBenchmark: () => 8000, normalRange: '8000-10000 steps', higherIsBetter: true },
-  { key: 'calories', label: 'Calories', unit: 'kcal', benchmark: 2000, getBenchmark: () => 2000, normalRange: '1800-2200 kcal', higherIsBetter: false },
-  { key: 'visceral_fat', label: 'Visceral Fat', unit: 'level', benchmark: 10, getBenchmark: () => 10, normalRange: 'Level 1-12', higherIsBetter: false },
-  { key: 'basal_metabolic_rate', label: 'BMR', unit: 'kcal', benchmark: null, getBenchmark: (user: User) => user?.gender === 'male' ? 1600 : 1400, normalRange: 'Male 1500-1800 / Female 1200-1500', higherIsBetter: true },
+// Metric configurations
+const METRICS = [
+  { key: 'bmi', label: 'BMI', unit: '', getValue: (r: HealthRecord) => r.bmi, getBenchmark: (u: User | null) => 22, checkNormal: (val: number, u: User | null) => val >= 18.5 && val <= 24.9, getDeduction: (val: number) => {
+    if (val >= 18.5 && val <= 24.9) return 0;
+    if (val > 24.9 && val <= 27) return 5;
+    if (val > 27 && val <= 30) return 10;
+    if (val > 30) return 15;
+    if (val < 18.5 && val >= 17) return 5;
+    return 15;
+  }, getSuggestion: (val: number, u: User | null) => {
+    if (val >= 18.5 && val <= 24.9) return 'Normal range (18.5-24.9)';
+    if (val > 24.9 && val <= 27) return `BMI ${val} (overweight), diet and exercise recommended`;
+    if (val > 27 && val <= 30) return `BMI ${val} (obese), weight management needed`;
+    if (val > 30) return `BMI ${val} (severely obese), consult a doctor`;
+    if (val < 18.5 && val >= 17) return `BMI ${val} (underweight), increase nutrition`;
+    return `BMI ${val} (severely underweight), consult a doctor`;
+  } },
+  { key: 'heart_rate', label: 'Heart Rate', unit: 'bpm', getValue: (r: HealthRecord) => r.heart_rate, getBenchmark: (u: User | null) => u?.gender === 'male' ? 68 : 72, checkNormal: (val: number) => val >= 60 && val <= 80, getDeduction: (val: number) => {
+    if (val >= 60 && val <= 80) return 0;
+    if (val > 80 && val <= 90) return 5;
+    if (val > 90 && val <= 100) return 10;
+    if (val > 100) return 15;
+    if (val < 60 && val >= 55) return 5;
+    if (val < 55 && val >= 50) return 10;
+    return 15;
+  }, getSuggestion: (val: number) => {
+    if (val >= 60 && val <= 80) return 'Normal range (60-80 bpm)';
+    if (val > 80 && val <= 90) return `Heart rate ${val} bpm (high), rest recommended`;
+    if (val > 90 && val <= 100) return `Heart rate ${val} bpm (very high), needs attention`;
+    if (val > 100) return `Heart rate ${val} bpm (dangerous), see a doctor`;
+    if (val < 60 && val >= 55) return `Heart rate ${val} bpm (low), acceptable if no symptoms`;
+    if (val < 55 && val >= 50) return `Heart rate ${val} bpm (very low), consult doctor`;
+    return `Heart rate ${val} bpm (dangerously low), see a doctor`;
+  } },
+  { key: 'blood_pressure', label: 'Blood Pressure', unit: 'mmHg', getValue: (r: HealthRecord) => r.blood_pressure ? parseInt(r.blood_pressure.split('/')[0]) : null, getBenchmark: () => 120, checkNormal: (val: number) => val >= 90 && val <= 120, getDeduction: (val: number) => {
+    if (val >= 90 && val <= 120) return 0;
+    if (val > 120 && val <= 130) return 5;
+    if (val > 130 && val <= 140) return 10;
+    if (val > 140) return 15;
+    if (val < 90 && val >= 80) return 5;
+    return 10;
+  }, getSuggestion: (val: number) => {
+    if (val >= 90 && val <= 120) return 'Normal range (90-120 mmHg)';
+    if (val > 120 && val <= 130) return `BP ${val} mmHg (high), reduce salt intake`;
+    if (val > 130 && val <= 140) return `BP ${val} mmHg (very high), needs monitoring`;
+    if (val > 140) return `BP ${val} mmHg (dangerous), see a doctor`;
+    if (val < 90 && val >= 80) return `BP ${val} mmHg (low), stay hydrated`;
+    return `BP ${val} mmHg (too low), risk of dizziness`;
+  } },
+  { key: 'blood_sugar', label: 'Blood Sugar', unit: 'mmol/L', getValue: (r: HealthRecord) => r.blood_sugar, getBenchmark: () => 5.0, checkNormal: (val: number) => val >= 3.9 && val <= 5.6, getDeduction: (val: number) => {
+    if (val >= 3.9 && val <= 5.6) return 0;
+    if (val > 5.6 && val <= 6.1) return 5;
+    if (val > 6.1 && val <= 7.0) return 10;
+    if (val > 7.0) return 15;
+    if (val < 3.9 && val >= 3.0) return 8;
+    return 15;
+  }, getSuggestion: (val: number) => {
+    if (val >= 3.9 && val <= 5.6) return 'Normal range (3.9-5.6 mmol/L)';
+    if (val > 5.6 && val <= 6.1) return `Blood sugar ${val} (slightly high), watch diet`;
+    if (val > 6.1 && val <= 7.0) return `Blood sugar ${val} (high), pre-diabetic`;
+    if (val > 7.0) return `Blood sugar ${val} (dangerous), see a doctor`;
+    if (val < 3.9 && val >= 3.0) return `Blood sugar ${val} (low), eat something`;
+    return `Blood sugar ${val} (critically low), seek immediate care`;
+  } },
+  { key: 'sleep_level', label: 'Sleep Score', unit: 'pts', getValue: (r: HealthRecord) => r.sleep_level, getBenchmark: () => 80, checkNormal: (val: number) => val >= 85, getDeduction: (val: number) => {
+    if (val >= 85) return 0;
+    if (val >= 75) return 3;
+    if (val >= 65) return 7;
+    if (val >= 50) return 12;
+    return 15;
+  }, getSuggestion: (val: number) => {
+    if (val >= 85) return 'Excellent sleep quality (≥85), maintain routine';
+    if (val >= 75) return `Sleep score ${val} (good), slight improvement possible`;
+    if (val >= 65) return `Sleep score ${val} (fair), improve sleep routine`;
+    if (val >= 50) return `Sleep score ${val} (poor), needs attention`;
+    return `Sleep score ${val} (very poor), consult a doctor`;
+  } },
+  { key: 'steps', label: 'Steps', unit: 'steps', getValue: (r: HealthRecord) => r.steps, getBenchmark: () => 8000, checkNormal: (val: number) => val >= 10000, getDeduction: (val: number) => {
+    if (val >= 12000) return 0;
+    if (val >= 10000) return 2;
+    if (val >= 8000) return 5;
+    if (val >= 6000) return 9;
+    if (val >= 4000) return 12;
+    return 15;
+  }, getSuggestion: (val: number) => {
+    if (val >= 12000) return 'Excellent activity level (≥12000 steps), keep it up!';
+    if (val >= 10000) return `Steps ${val} (great), good activity level`;
+    if (val >= 8000) return `Steps ${val} (good), meets minimum recommendation`;
+    if (val >= 6000) return `Steps ${val} (average), increase activity`;
+    if (val >= 4000) return `Steps ${val} (low), need more exercise`;
+    return `Steps ${val} (very low), start exercising now`;
+  } },
+  { key: 'body_fat', label: 'Body Fat', unit: '%', getValue: (r: HealthRecord) => r.body_fat, getBenchmark: (u: User | null) => u?.gender === 'male' ? 15 : 25, checkNormal: (val: number, u: User | null) => {
+    const isMale = u?.gender === 'male';
+    return isMale ? (val >= 10 && val <= 20) : (val >= 18 && val <= 28);
+  }, getDeduction: (val: number, u: User | null) => {
+    const isMale = u?.gender === 'male';
+    if ((isMale && val >= 10 && val <= 20) || (!isMale && val >= 18 && val <= 28)) return 0;
+    if ((isMale && val > 20 && val <= 25) || (!isMale && val > 28 && val <= 32)) return 7;
+    if ((isMale && val > 25 && val <= 30) || (!isMale && val > 32 && val <= 35)) return 12;
+    return 15;
+  }, getSuggestion: (val: number, u: User | null) => {
+    const isMale = u?.gender === 'male';
+    if ((isMale && val >= 10 && val <= 20) || (!isMale && val >= 18 && val <= 28)) return 'Standard range, healthy physique';
+    if ((isMale && val > 20 && val <= 25) || (!isMale && val > 28 && val <= 32)) return `Body fat ${val}% (high), consider more cardio`;
+    if ((isMale && val > 25 && val <= 30) || (!isMale && val > 32 && val <= 35)) return `Body fat ${val}% (too high), need more exercise`;
+    return `Body fat ${val}% (severely high), consult a trainer`;
+  } },
+  { key: 'muscle_mass', label: 'Muscle Mass', unit: 'kg', getValue: (r: HealthRecord) => r.muscle_mass, getBenchmark: (u: User | null) => u?.gender === 'male' ? 40 : 30, checkNormal: (val: number, u: User | null) => {
+    const isMale = u?.gender === 'male';
+    return isMale ? val >= 40 : val >= 30;
+  }, getDeduction: (val: number, u: User | null) => {
+    const isMale = u?.gender === 'male';
+    if ((isMale && val >= 40) || (!isMale && val >= 30)) return 0;
+    if ((isMale && val >= 35) || (!isMale && val >= 25)) return 5;
+    if ((isMale && val >= 30) || (!isMale && val >= 20)) return 10;
+    return 15;
+  }, getSuggestion: (val: number, u: User | null) => {
+    const isMale = u?.gender === 'male';
+    if ((isMale && val >= 40) || (!isMale && val >= 30)) return 'Good muscle mass, healthy metabolism';
+    if ((isMale && val >= 35) || (!isMale && val >= 25)) return `Muscle mass ${val}kg (normal), consider strength training`;
+    if ((isMale && val >= 30) || (!isMale && val >= 20)) return `Muscle mass ${val}kg (low), consider strength training`;
+    return `Muscle mass ${val}kg (very low), need strength training`;
+  } },
+  { key: 'calories', label: 'Calories', unit: 'kcal', getValue: (r: HealthRecord) => r.calories, getBenchmark: () => 2000, checkNormal: (val: number) => val >= 1800 && val <= 2200, getDeduction: (val: number) => {
+    if (val >= 1800 && val <= 2200) return 0;
+    if (val >= 1500 && val < 1800) return 7;
+    if (val >= 1000 && val < 1500) return 12;
+    if (val < 1000) return 15;
+    if (val > 2200 && val <= 2500) return 5;
+    if (val > 2500 && val <= 3000) return 10;
+    return 15;
+  }, getSuggestion: (val: number) => {
+    if (val >= 1800 && val <= 2200) return 'Normal calorie intake, good diet';
+    if (val >= 1500 && val < 1800) return `Calories ${val} (low), need more nutrition`;
+    if (val >= 1000 && val < 1500) return `Calories ${val} (very low), significantly under-eating`;
+    if (val < 1000) return `Calories ${val} (dangerously low), seek medical advice`;
+    if (val > 2200 && val <= 2500) return `Calories ${val} (high), watch your intake`;
+    if (val > 2500 && val <= 3000) return `Calories ${val} (very high), reduce intake`;
+    return `Calories ${val} (dangerously high), consult a doctor`;
+  } },
+  { key: 'body_water', label: 'Body Water', unit: '%', getValue: (r: HealthRecord) => r.body_water, getBenchmark: (u: User | null) => u?.gender === 'male' ? 60 : 55, checkNormal: (val: number, u: User | null) => {
+    const ideal = u?.gender === 'male' ? 60 : 55;
+    return Math.abs(val - ideal) / ideal <= 0.05;
+  }, getDeduction: (val: number, u: User | null) => {
+    const ideal = u?.gender === 'male' ? 60 : 55;
+    const diff = Math.abs(val - ideal) / ideal;
+    if (diff <= 0.05) return 0;
+    if (diff <= 0.1) return 5;
+    if (diff <= 0.2) return 10;
+    return 15;
+  }, getSuggestion: (val: number, u: User | null) => {
+    const ideal = u?.gender === 'male' ? 60 : 55;
+    const diff = Math.abs(val - ideal) / ideal;
+    if (diff <= 0.05) return `Body water ${val}%, well hydrated`;
+    if (diff <= 0.1) return `Body water ${val}% (slightly off), stay hydrated`;
+    if (diff <= 0.2) return `Body water ${val}% (significantly off), drink more water`;
+    return `Body water ${val}% (severely abnormal), consult a doctor`;
+  } },
+  { key: 'visceral_fat', label: 'Visceral Fat', unit: 'level', getValue: (r: HealthRecord) => r.visceral_fat, getBenchmark: () => 10, checkNormal: (val: number) => val <= 10, getDeduction: (val: number) => {
+    if (val <= 10) return 0;
+    if (val <= 15) return 5;
+    if (val <= 20) return 10;
+    return 15;
+  }, getSuggestion: (val: number) => {
+    if (val <= 10) return 'Normal range (≤10), healthy';
+    if (val <= 15) return `Visceral fat level ${val} (high), watch diet`;
+    if (val <= 20) return `Visceral fat level ${val} (very high), need exercise`;
+    return `Visceral fat level ${val} (dangerous), consult a doctor`;
+  } },
 ];
-
-// 计算健康评分（扣分机制：从100分开始扣）
-const calculateHealthScoreData = (records: HealthRecord[], user: User | null) => {
-  if (records.length === 0) return null;
-  
-  const latestRecord = records[0];
-  let totalDeduction = 0;
-  const details: { metric: string; value: number; benchmark: number; deduction: number; suggestion: string; isNormal: boolean }[] = [];
-  
-  for (const metric of ALL_METRICS) {
-    let userValue: number | null = null;
-    
-    if (metric.key === 'blood_pressure' && latestRecord.blood_pressure) {
-      const bpParts = latestRecord.blood_pressure.split('/');
-      userValue = parseInt(bpParts[0]);
-    } else {
-      userValue = latestRecord[metric.key as keyof HealthRecord] as number | null;
-    }
-    
-    if (userValue === null || userValue === undefined) continue;
-    
-    const benchmark = metric.getBenchmark ? metric.getBenchmark(user!) : metric.benchmark || 0;
-    let deduction = 0;
-    let suggestion = '';
-    let isNormal = true;
-    
-    // ========== BMI 评分 ==========
-    if (metric.key === 'bmi') {
-      if (userValue >= 18.5 && userValue <= 24.9) {
-        deduction = 0;
-        suggestion = 'BMI in normal range (18.5-24.9)';
-        isNormal = true;
-      } else if (userValue > 24.9 && userValue <= 27) {
-        deduction = 5;
-        suggestion = `BMI ${userValue} (overweight), recommended to control diet and exercise`;
-        isNormal = false;
-      } else if (userValue > 27 && userValue <= 30) {
-        deduction = 10;
-        suggestion = `BMI ${userValue} (obese), weight management needed`;
-        isNormal = false;
-      } else if (userValue > 30) {
-        deduction = 15;
-        suggestion = `BMI ${userValue} (severely obese), please consult a doctor`;
-        isNormal = false;
-      } else if (userValue < 18.5 && userValue >= 17) {
-        deduction = 5;
-        suggestion = `BMI ${userValue} (underweight), increase nutrition intake`;
-        isNormal = false;
-      } else if (userValue < 17) {
-        deduction = 15;
-        suggestion = `BMI ${userValue} (severely underweight), please consult a doctor`;
-        isNormal = false;
-      }
-    }
-    // ========== 心率评分 ==========
-    else if (metric.key === 'heart_rate') {
-      if (userValue >= 60 && userValue <= 80) {
-        deduction = 0;
-        suggestion = 'Heart rate normal (60-80 bpm), good cardiovascular health';
-        isNormal = true;
-      } else if (userValue > 80 && userValue <= 90) {
-        deduction = 5;
-        suggestion = `Heart rate ${userValue} bpm (slightly high), rest recommended`;
-        isNormal = false;
-      } else if (userValue > 90 && userValue <= 100) {
-        deduction = 10;
-        suggestion = `Heart rate ${userValue} bpm (high), needs attention`;
-        isNormal = false;
-      } else if (userValue > 100) {
-        deduction = 15;
-        suggestion = `Heart rate ${userValue} bpm (dangerously high), see a doctor`;
-        isNormal = false;
-      } else if (userValue < 60 && userValue >= 55) {
-        deduction = 5;
-        suggestion = `Heart rate ${userValue} bpm (slightly low), acceptable if no symptoms`;
-        isNormal = false;
-      } else if (userValue < 55 && userValue >= 50) {
-        deduction = 10;
-        suggestion = `Heart rate ${userValue} bpm (low), consult doctor`;
-        isNormal = false;
-      } else if (userValue < 50) {
-        deduction = 15;
-        suggestion = `Heart rate ${userValue} bpm (dangerously low), see a doctor`;
-        isNormal = false;
-      }
-    }
-    // ========== 血压评分 ==========
-    else if (metric.key === 'blood_pressure') {
-      if (userValue >= 90 && userValue <= 120) {
-        deduction = 0;
-        suggestion = 'Blood pressure normal (90-120 mmHg), good cardiovascular health';
-        isNormal = true;
-      } else if (userValue > 120 && userValue <= 130) {
-        deduction = 5;
-        suggestion = `Blood pressure ${userValue} mmHg (high), reduce salt intake`;
-        isNormal = false;
-      } else if (userValue > 130 && userValue <= 140) {
-        deduction = 10;
-        suggestion = `Blood pressure ${userValue} mmHg (very high), needs monitoring`;
-        isNormal = false;
-      } else if (userValue > 140) {
-        deduction = 15;
-        suggestion = `Blood pressure ${userValue} mmHg (dangerously high), see a doctor`;
-        isNormal = false;
-      } else if (userValue < 90 && userValue >= 80) {
-        deduction = 5;
-        suggestion = `Blood pressure ${userValue} mmHg (low), stay hydrated`;
-        isNormal = false;
-      } else if (userValue < 80) {
-        deduction = 10;
-        suggestion = `Blood pressure ${userValue} mmHg (too low), risk of dizziness`;
-        isNormal = false;
-      }
-    }
-    // ========== 血糖评分 ==========
-    else if (metric.key === 'blood_sugar') {
-      if (userValue >= 3.9 && userValue <= 5.6) {
-        deduction = 0;
-        suggestion = 'Blood sugar normal (3.9-5.6 mmol/L), good metabolism';
-        isNormal = true;
-      } else if (userValue > 5.6 && userValue <= 6.1) {
-        deduction = 5;
-        suggestion = `Blood sugar ${userValue} mmol/L (slightly high), watch diet`;
-        isNormal = false;
-      } else if (userValue > 6.1 && userValue <= 7.0) {
-        deduction = 10;
-        suggestion = `Blood sugar ${userValue} mmol/L (high), pre-diabetic`;
-        isNormal = false;
-      } else if (userValue > 7.0) {
-        deduction = 15;
-        suggestion = `Blood sugar ${userValue} mmol/L (dangerously high), see a doctor`;
-        isNormal = false;
-      } else if (userValue < 3.9 && userValue >= 3.0) {
-        deduction = 8;
-        suggestion = `Blood sugar ${userValue} mmol/L (low), eat something`;
-        isNormal = false;
-      } else if (userValue < 3.0) {
-        deduction = 15;
-        suggestion = `Blood sugar ${userValue} mmol/L (critically low), seek immediate care`;
-        isNormal = false;
-      }
-    }
-    // ========== 睡眠评分 ==========
-    else if (metric.key === 'sleep_level') {
-      if (userValue >= 85) {
-        deduction = 0;
-        suggestion = 'Excellent sleep quality (≥85), maintain routine';
-        isNormal = true;
-      } else if (userValue >= 75) {
-        deduction = 3;
-        suggestion = `Sleep score ${userValue} (good), slight improvement possible`;
-        isNormal = false;
-      } else if (userValue >= 65) {
-        deduction = 7;
-        suggestion = `Sleep score ${userValue} (fair), improve sleep routine`;
-        isNormal = false;
-      } else if (userValue >= 50) {
-        deduction = 12;
-        suggestion = `Sleep score ${userValue} (poor), needs attention`;
-        isNormal = false;
-      } else {
-        deduction = 15;
-        suggestion = `Sleep score ${userValue} (very poor), consult a doctor`;
-        isNormal = false;
-      }
-    }
-    // ========== 步数评分 ==========
-    else if (metric.key === 'steps') {
-      if (userValue >= 12000) {
-        deduction = 0;
-        suggestion = 'Excellent activity level (≥12000 steps), keep it up!';
-        isNormal = true;
-      } else if (userValue >= 10000) {
-        deduction = 2;
-        suggestion = `Great activity level (${userValue} steps), good!`;
-        isNormal = false;
-      } else if (userValue >= 8000) {
-        deduction = 5;
-        suggestion = `Good activity level (${userValue} steps), meets minimum`;
-        isNormal = false;
-      } else if (userValue >= 6000) {
-        deduction = 9;
-        suggestion = `Average activity (${userValue} steps), increase activity`;
-        isNormal = false;
-      } else if (userValue >= 4000) {
-        deduction = 12;
-        suggestion = `Low activity (${userValue} steps), need more exercise`;
-        isNormal = false;
-      } else {
-        deduction = 15;
-        suggestion = `Very low activity (${userValue} steps), start exercising now`;
-        isNormal = false;
-      }
-    }
-    // ========== 体脂率评分 ==========
-    else if (metric.key === 'body_fat') {
-      const isMale = user?.gender === 'male';
-      if ((isMale && userValue >= 10 && userValue <= 20) || (!isMale && userValue >= 18 && userValue <= 28)) {
-        deduction = 0;
-        suggestion = 'Body fat percentage is standard, healthy physique';
-        isNormal = true;
-      } else if ((isMale && userValue > 20 && userValue <= 25) || (!isMale && userValue > 28 && userValue <= 32)) {
-        deduction = 7;
-        suggestion = `Body fat ${userValue}% (high), consider more cardio`;
-        isNormal = false;
-      } else if ((isMale && userValue > 25 && userValue <= 30) || (!isMale && userValue > 32 && userValue <= 35)) {
-        deduction = 12;
-        suggestion = `Body fat ${userValue}% (too high), need more exercise`;
-        isNormal = false;
-      } else {
-        deduction = 15;
-        suggestion = `Body fat ${userValue}% (severely high), consult a fitness trainer`;
-        isNormal = false;
-      }
-    }
-    // ========== 肌肉量评分 ==========
-    else if (metric.key === 'muscle_mass') {
-      const isMale = user?.gender === 'male';
-      if ((isMale && userValue >= 40) || (!isMale && userValue >= 30)) {
-        deduction = 0;
-        suggestion = 'Good muscle mass, healthy metabolism';
-        isNormal = true;
-      } else if ((isMale && userValue >= 35 && userValue < 40) || (!isMale && userValue >= 25 && userValue < 30)) {
-        deduction = 5;
-        suggestion = `Muscle mass ${userValue}kg (normal), consider strength training`;
-        isNormal = false;
-      } else if ((isMale && userValue >= 30 && userValue < 35) || (!isMale && userValue >= 20 && userValue < 25)) {
-        deduction = 10;
-        suggestion = `Muscle mass ${userValue}kg (low), consider strength training`;
-        isNormal = false;
-      } else {
-        deduction = 15;
-        suggestion = `Muscle mass ${userValue}kg (very low), need strength training`;
-        isNormal = false;
-      }
-    }
-    // ========== 体水分评分 ==========
-    else if (metric.key === 'body_water') {
-      const isMale = user?.gender === 'male';
-      const idealWater = isMale ? 60 : 55;
-      const percentDiff = Math.abs(userValue - idealWater) / idealWater;
-      if (percentDiff <= 0.05) {
-        deduction = 0;
-        suggestion = `Body water ${userValue}%, well hydrated`;
-        isNormal = true;
-      } else if (percentDiff <= 0.1) {
-        deduction = 5;
-        suggestion = `Body water ${userValue}% (slightly off), stay hydrated`;
-        isNormal = false;
-      } else if (percentDiff <= 0.2) {
-        deduction = 10;
-        suggestion = `Body water ${userValue}% (significantly off), drink more water`;
-        isNormal = false;
-      } else {
-        deduction = 15;
-        suggestion = `Body water ${userValue}% (severely abnormal), consult a doctor`;
-        isNormal = false;
-      }
-    }
-    // ========== 卡路里评分 ==========
-    else if (metric.key === 'calories') {
-      if (userValue >= 1800 && userValue <= 2200) {
-        deduction = 0;
-        suggestion = `Calorie intake ${userValue} kcal, good diet`;
-        isNormal = true;
-      } else if (userValue >= 1500 && userValue < 1800) {
-        deduction = 7;
-        suggestion = `Calorie intake ${userValue} kcal (low), need more nutrition`;
-        isNormal = false;
-      } else if (userValue >= 1000 && userValue < 1500) {
-        deduction = 12;
-        suggestion = `Calorie intake ${userValue} kcal (very low), significantly under-eating`;
-        isNormal = false;
-      } else if (userValue < 1000) {
-        deduction = 15;
-        suggestion = `Calorie intake ${userValue} kcal (dangerously low), seek medical advice`;
-        isNormal = false;
-      } else if (userValue > 2200 && userValue <= 2500) {
-        deduction = 5;
-        suggestion = `Calorie intake ${userValue} kcal (high), watch your intake`;
-        isNormal = false;
-      } else if (userValue > 2500 && userValue <= 3000) {
-        deduction = 10;
-        suggestion = `Calorie intake ${userValue} kcal (very high), reduce intake`;
-        isNormal = false;
-      } else if (userValue > 3000) {
-        deduction = 15;
-        suggestion = `Calorie intake ${userValue} kcal (dangerously high), consult a doctor`;
-        isNormal = false;
-      }
-    }
-    // ========== 体重评分（与理想体重对比） ==========
-    else if (metric.key === 'weight') {
-      const idealWeight = user ? 22 * Math.pow(user.height / 100, 2) : 70;
-      const percentDiff = Math.abs(userValue - idealWeight) / idealWeight;
-      if (percentDiff <= 0.05) {
-        deduction = 0;
-        suggestion = `Weight ${userValue} kg, ideal weight (±${(percentDiff * 100).toFixed(0)}%)`;
-        isNormal = true;
-      } else if (percentDiff <= 0.1) {
-        deduction = 5;
-        suggestion = `Weight ${userValue} kg (slightly off), pay attention`;
-        isNormal = false;
-      } else if (percentDiff <= 0.2) {
-        deduction = 10;
-        suggestion = `Weight ${userValue} kg (significantly off), consider management`;
-        isNormal = false;
-      } else {
-        deduction = 15;
-        suggestion = `Weight ${userValue} kg (severely off), needs attention`;
-        isNormal = false;
-      }
-    }
-    // ========== 其他指标通用评分 ==========
-    else {
-      const percentDiff = Math.abs(userValue - benchmark) / benchmark;
-      if (percentDiff <= 0.1) {
-        deduction = 0;
-        suggestion = `${metric.label} is normal`;
-        isNormal = true;
-      } else if (percentDiff <= 0.2) {
-        deduction = 8;
-        suggestion = `${metric.label} ${userValue} (slightly off), pay attention`;
-        isNormal = false;
-      } else {
-        deduction = 15;
-        suggestion = `${metric.label} ${userValue} (abnormal), needs attention`;
-        isNormal = false;
-      }
-    }
-    
-    totalDeduction += deduction;
-    details.push({
-      metric: metric.label,
-      value: userValue,
-      benchmark,
-      deduction,
-      suggestion,
-      isNormal,
-    });
-  }
-  
-  // 最终得分 = 100 - 总扣分，最低不低于0
-  const finalScore = Math.max(0, 100 - totalDeduction);
-  
-  let grade = '';
-  let gradeColor = '';
-  if (finalScore >= 90) { grade = 'Excellent'; gradeColor = 'text-green-600'; }
-  else if (finalScore >= 75) { grade = 'Good'; gradeColor = 'text-blue-600'; }
-  else if (finalScore >= 60) { grade = 'Fair'; gradeColor = 'text-yellow-600'; }
-  else { grade = 'Needs Attention'; gradeColor = 'text-red-600'; }
-  
-  return { 
-    score: finalScore, 
-    grade, 
-    gradeColor, 
-    details,
-    totalDeduction
-  };
-};
 
 export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
   const { t, language, formatDate, formatShortDate } = useLanguage();
@@ -395,84 +190,69 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
   const [isCalculating, setIsCalculating] = useState(false);
   const [showScore, setShowScore] = useState(false);
   const [scoreAnimation, setScoreAnimation] = useState(false);
-  const [healthScore, setHealthScore] = useState<{ score: number; grade: string; gradeColor: string; details: { metric: string; value: number; benchmark: number; deduction: number; suggestion: string; isNormal: boolean }[]; totalDeduction: number } | null>(null);
+  const [healthScore, setHealthScore] = useState<{ score: number; grade: string; gradeColor: string; details: any[]; normalCount: number; abnormalCount: number } | null>(null);
 
-  const currentMetric = ALL_METRICS.find(m => m.key === selectedMetric) || ALL_METRICS[0];
-  const currentMetricLabel = currentMetric.label;
-  const currentNormalRange = currentMetric.normalRange;
-  
-  const getBenchmarkValue = (metric: typeof currentMetric): number => {
-    if (metric.getBenchmark) {
-      return metric.getBenchmark(user!);
-    }
-    return metric.benchmark || 0;
+  const getLatestValue = (metric: typeof METRICS[0]) => {
+    if (healthRecords.length === 0) return null;
+    const latest = healthRecords[0];
+    return metric.getValue(latest);
   };
 
-  const getUserAverage = (metricKey: string): number | null => {
-    const values = healthRecords
-      .map(r => {
-        let val = r[metricKey as keyof HealthRecord];
-        if (metricKey === 'blood_pressure' && typeof val === 'string') {
-          val = parseInt(val.split('/')[0]);
-        }
-        return typeof val === 'number' ? val : null;
-      })
-      .filter(v => v !== null) as number[];
-    
-    if (values.length === 0) return null;
-    return values.reduce((a, b) => a + b, 0) / values.length;
+  const getLatestBenchmark = (metric: typeof METRICS[0]) => {
+    return metric.getBenchmark(user);
   };
 
   const chartData = useMemo(() => {
-    const userValue = getUserAverage(selectedMetric);
-    const benchmarkValue = getBenchmarkValue(currentMetric);
-    
-    if (userValue === null) return null;
-    
+    const metric = METRICS.find(m => m.key === selectedMetric);
+    if (!metric) return null;
+    const userValue = getLatestValue(metric);
+    const benchmark = getLatestBenchmark(metric);
+    if (userValue === null || userValue === undefined) return null;
     return [
-      { name: t('yourAverage'), value: userValue, color: '#6366f1' },
-      { name: t('healthBenchmark'), value: benchmarkValue, color: '#94a3b8' },
+      { name: 'You', value: userValue, color: '#6366f1' },
+      { name: 'Benchmark', value: benchmark, color: '#94a3b8' },
     ];
-  }, [selectedMetric, healthRecords, user, currentMetric, t]);
-
-  const comparison = useMemo(() => {
-    const userValue = getUserAverage(selectedMetric);
-    const benchmarkValue = getBenchmarkValue(currentMetric);
-    
-    if (userValue === null) return null;
-    
-    const diff = userValue - benchmarkValue;
-    const percentDiff = (diff / benchmarkValue) * 100;
-    const isHigher = diff > 0;
-    const isBetter = currentMetric.higherIsBetter ? (isHigher ? diff > 0 : diff < 0) : (isHigher ? diff < 0 : diff > 0);
-    
-    let statusText = '';
-    if (Math.abs(percentDiff) < 5) statusText = t('normal');
-    else if (isBetter) statusText = t('aboveBenchmark');
-    else statusText = t('belowBenchmark');
-    
-    let statusColor = '';
-    if (Math.abs(percentDiff) < 5) statusColor = 'text-green-600';
-    else if (isBetter) statusColor = 'text-green-600';
-    else statusColor = 'text-red-600';
-    
-    return {
-      diff: Math.abs(diff).toFixed(1),
-      percentDiff: Math.abs(percentDiff).toFixed(1),
-      isHigher,
-      isBetter,
-      statusText,
-      statusColor,
-    };
-  }, [selectedMetric, healthRecords, user, currentMetric, t]);
+  }, [selectedMetric, healthRecords]);
 
   const calculateHealthScore = () => {
     setIsCalculating(true);
     setShowScore(false);
     
     setTimeout(() => {
-      const result = calculateHealthScoreData(healthRecords, user);
-      setHealthScore(result);
+      let totalDeduction = 0;
+      const details: any[] = [];
+      
+      for (const metric of METRICS) {
+        const value = getLatestValue(metric);
+        if (value === null || value === undefined) continue;
+        
+        const isNormal = metric.checkNormal(value, user);
+        const deduction = isNormal ? 0 : metric.getDeduction(value, user);
+        const suggestion = metric.getSuggestion(value, user);
+        
+        totalDeduction += deduction;
+        details.push({
+          label: metric.label,
+          value: value,
+          benchmark: metric.getBenchmark(user),
+          isNormal,
+          deduction,
+          suggestion,
+        });
+      }
+      
+      const finalScore = Math.max(0, 100 - totalDeduction);
+      const normalCount = details.filter(d => d.isNormal).length;
+      const abnormalCount = details.filter(d => !d.isNormal).length;
+      
+      let grade = '';
+      let gradeColor = '';
+      if (finalScore >= 90) { grade = 'Excellent'; gradeColor = 'text-green-600'; }
+      else if (finalScore >= 75) { grade = 'Good'; gradeColor = 'text-blue-600'; }
+      else if (finalScore >= 60) { grade = 'Fair'; gradeColor = 'text-yellow-600'; }
+      else { grade = 'Needs Attention'; gradeColor = 'text-red-600'; }
+      
+      setHealthScore({ score: finalScore, grade, gradeColor, details, normalCount, abnormalCount });
       setShowScore(true);
       setScoreAnimation(true);
       setTimeout(() => setScoreAnimation(false), 1000);
@@ -483,61 +263,60 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
   const ageGroup = user ? `${Math.floor(user.age / 10) * 10}-${Math.floor(user.age / 10) * 10 + 9}` : '30-39';
   const genderText = user?.gender === 'male' ? 'Male' : 'Female';
 
-  // 统计正常和不正常的指标数量
-  const normalCount = healthScore?.details.filter(d => d.isNormal).length || 0;
-  const abnormalCount = healthScore?.details.filter(d => !d.isNormal).length || 0;
-
   return (
     <div className="max-w-4xl mx-auto">
       <header className="mb-8">
-        <h1 className="text-gray-800 dark:text-white text-2xl font-bold mb-2">{t('healthAnalysis')}</h1>
-        <p className="text-gray-600 dark:text-gray-400">{t('comparisonBenchmark')}</p>
+        <h1 className="text-gray-800 dark:text-white text-2xl font-bold mb-2">Health Analysis</h1>
+        <p className="text-gray-600 dark:text-gray-400">Compare your metrics with health benchmarks</p>
       </header>
 
       <div className="space-y-6">
         {healthRecords.length > 0 ? (
           <>
+            {/* Overview Card */}
             <div className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-2xl p-6 shadow-lg">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h2 className="text-white text-lg font-semibold mb-2">{t('analysisPeriod')}</h2>
-                  <p className="text-indigo-100">{t('basedOnData')} {healthRecords.length} {t('daysOfData')}</p>
+                  <h2 className="text-white text-lg font-semibold mb-2">Analysis Period</h2>
+                  <p className="text-indigo-100">Based on data from {healthRecords.length} days</p>
                 </div>
                 <div className="bg-white/20 p-3 rounded-xl"><BarChart3 size={24} /></div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                 <div className="bg-white/10 rounded-lg p-3">
-                  <p className="text-sm text-indigo-100">{t('firstRecord')}</p>
+                  <p className="text-sm text-indigo-100">First Record</p>
                   <p className="text-lg mt-1">{formatShortDate(healthRecords[healthRecords.length - 1].date)}</p>
                 </div>
                 <div className="bg-white/10 rounded-lg p-3">
-                  <p className="text-sm text-indigo-100">{t('latestRecord')}</p>
+                  <p className="text-sm text-indigo-100">Latest Record</p>
                   <p className="text-lg mt-1">{formatShortDate(healthRecords[0].date)}</p>
                 </div>
                 <div className="bg-white/10 rounded-lg p-3">
-                  <p className="text-sm text-indigo-100">{t('totalDays')}</p>
-                  <p className="text-lg mt-1">{healthRecords.length} {t('days')}</p>
+                  <p className="text-sm text-indigo-100">Total Days</p>
+                  <p className="text-lg mt-1">{healthRecords.length} days</p>
                 </div>
                 <div className="bg-white/10 rounded-lg p-3">
-                  <p className="text-sm text-indigo-100">{t('availableMetrics')}</p>
-                  <p className="text-lg mt-1">{ALL_METRICS.filter(m => getUserAverage(m.key) !== null).length}</p>
+                  <p className="text-sm text-indigo-100">Available Metrics</p>
+                  <p className="text-lg mt-1">{METRICS.filter(m => getLatestValue(m) !== null).length}</p>
                 </div>
               </div>
             </div>
 
+            {/* User Info Card */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-4">
                 <Users className="text-indigo-600" size={24} />
                 <div>
-                  <h2 className="text-gray-800 dark:text-white font-semibold">{t('comparisonBenchmark')}</h2>
+                  <h2 className="text-gray-800 dark:text-white font-semibold">Comparison Benchmark</h2>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {t('age')} {ageGroup} • {genderText} • {t('basedOnMedicalStandards')}
+                    Age {ageGroup} • {genderText} • Based on medical standards
                   </p>
                 </div>
               </div>
-              <p className="text-gray-600 dark:text-gray-400">{t('selectMetricToCompare')}</p>
+              <p className="text-gray-600 dark:text-gray-400">Select a metric below to compare</p>
             </div>
 
+            {/* Metric Selector */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
               <div className="relative">
                 <button
@@ -546,11 +325,13 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">
-                      {currentMetricLabel.charAt(0)}
+                      {METRICS.find(m => m.key === selectedMetric)?.label.charAt(0) || 'B'}
                     </div>
                     <div className="text-left">
-                      <p className="font-medium text-gray-800 dark:text-white">{currentMetricLabel}</p>
-                      <p className="text-xs text-gray-500">{t('normalRange')}: {currentNormalRange}</p>
+                      <p className="font-medium text-gray-800 dark:text-white">{METRICS.find(m => m.key === selectedMetric)?.label}</p>
+                      <p className="text-xs text-gray-500">
+                        Normal: {METRICS.find(m => m.key === selectedMetric)?.checkNormal(getLatestValue(METRICS.find(m => m.key === selectedMetric)!) || 0, user) ? '✓' : '⚠'}
+                      </p>
                     </div>
                   </div>
                   <svg className={`w-5 h-5 text-gray-400 transition-transform ${showMetricSelector ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -559,8 +340,9 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
                 </button>
                 {showMetricSelector && (
                   <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 z-10 max-h-64 overflow-y-auto">
-                    {ALL_METRICS.map(metric => {
-                      const hasData = getUserAverage(metric.key) !== null;
+                    {METRICS.map(metric => {
+                      const value = getLatestValue(metric);
+                      const hasData = value !== null && value !== undefined;
                       return (
                         <button
                           key={metric.key}
@@ -578,7 +360,7 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
                             <p className="text-sm font-medium text-gray-800 dark:text-white">{metric.label}</p>
                             <p className="text-xs text-gray-500">{metric.unit}</p>
                           </div>
-                          {!hasData && <span className="ml-auto text-xs text-gray-400">{t('noData')}</span>}
+                          {!hasData && <span className="ml-auto text-xs text-gray-400">No data</span>}
                         </button>
                       );
                     })}
@@ -587,11 +369,12 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
               </div>
             </div>
 
+            {/* Comparison Chart */}
             {chartData && (
               <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
                 <div className="text-center mb-6">
-                  <h3 className="text-gray-800 dark:text-white font-semibold text-lg">{currentMetricLabel} {t('comparisonBenchmark')}</h3>
-                  <p className="text-sm text-gray-500">{t('yourAverage')} vs {t('healthBenchmark')}</p>
+                  <h3 className="text-gray-800 dark:text-white font-semibold text-lg">{METRICS.find(m => m.key === selectedMetric)?.label} Comparison</h3>
+                  <p className="text-sm text-gray-500">You vs Health Benchmark</p>
                 </div>
                 
                 <div className="h-80">
@@ -599,35 +382,31 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
                     <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                       <XAxis dataKey="name" stroke="#6b7280" />
-                      <YAxis stroke="#6b7280" domain={[0, 'auto']} label={{ value: currentMetric.unit, angle: -90, position: 'insideLeft', style: { fontSize: '12px', fill: '#6b7280' } }} />
-                      <Tooltip contentStyle={{ backgroundColor: '#fff', border: 'none', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(value: any) => [`${value} ${currentMetric.unit}`, '']} />
+                      <YAxis stroke="#6b7280" domain={[0, 'auto']} label={{ value: METRICS.find(m => m.key === selectedMetric)?.unit || '', angle: -90, position: 'insideLeft', style: { fontSize: '12px', fill: '#6b7280' } }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#fff', border: 'none', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                       <Bar dataKey="value" radius={[8, 8, 0, 0]}>
                         {chartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-
-                {comparison && (
-                  <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div><p className="text-xs text-gray-500">{t('yourAverage')}</p><p className="text-xl font-bold text-indigo-600">{chartData[0].value.toFixed(1)} {currentMetric.unit}</p></div>
-                      <div><p className="text-xs text-gray-500">{t('healthBenchmark')}</p><p className="text-xl font-bold text-gray-600">{chartData[1].value.toFixed(1)} {currentMetric.unit}</p></div>
-                      <div><p className="text-xs text-gray-500">{t('difference')}</p><p className={`text-xl font-bold ${comparison.statusColor}`}>{comparison.isHigher ? '+' : '-'}{comparison.diff} {currentMetric.unit}<span className="text-sm ml-1">({comparison.percentDiff}%)</span></p></div>
-                    </div>
-                    <div className="mt-3 text-center"><span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${comparison.statusColor} bg-opacity-10 bg-gray-100`}>{comparison.statusText === 'normal' && <Minus size={14} />}{comparison.statusText === 'aboveBenchmark' && <TrendingUp size={14} />}{comparison.statusText === 'belowBenchmark' && <TrendingDown size={14} />}{comparison.statusText}</span></div>
-                  </div>
-                )}
               </div>
             )}
 
+            {/* Health Score Assessment Card */}
             <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 rounded-2xl p-6 shadow-lg border border-indigo-100 dark:border-indigo-800">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-3 rounded-xl"><Award className="text-white" size={24} /></div>
-                  <div><h2 className="text-gray-800 dark:text-white font-semibold text-lg">{t('healthScoreAssessment')}</h2><p className="text-sm text-gray-600 dark:text-gray-400">{t('comprehensiveEvaluation')}</p></div>
+                  <div>
+                    <h2 className="text-gray-800 dark:text-white font-semibold text-lg">Health Score Assessment</h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Comprehensive evaluation of your overall health</p>
+                  </div>
                 </div>
-                <button onClick={calculateHealthScore} disabled={isCalculating} className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 flex items-center gap-2"><Sparkles size={18} />{isCalculating ? t('assessing') : t('startAssessment')}</button>
+                <button onClick={calculateHealthScore} disabled={isCalculating} className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 flex items-center gap-2">
+                  <Sparkles size={18} />
+                  {isCalculating ? 'Assessing...' : 'Start Assessment'}
+                </button>
               </div>
 
               <AnimatePresence>
@@ -638,8 +417,8 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
                         <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, 360] }} transition={{ duration: 1.5, repeat: Infinity }} className="absolute inset-0"><Heart className="w-full h-full text-pink-500" /></motion.div>
                         <motion.div animate={{ scale: [0, 1.5], opacity: [1, 0] }} transition={{ duration: 0.5, repeat: Infinity }} className="absolute inset-0 flex items-center justify-center"><Sparkles className="text-yellow-400" size={40} /></motion.div>
                       </div>
-                      <p className="mt-4 text-gray-600 dark:text-gray-400">{t('analyzingData')}</p>
-                      <p className="text-sm text-gray-500 mt-2">{t('collectingCalculatingSuggesting')}</p>
+                      <p className="mt-4 text-gray-600 dark:text-gray-400">Analyzing your health data...</p>
+                      <p className="text-sm text-gray-500 mt-2">Reviewing metrics and calculating score</p>
                     </div>
                   </motion.div>
                 )}
@@ -658,24 +437,20 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
                     </div>
                     <p className={`mt-3 font-bold text-xl ${healthScore.gradeColor}`}>{healthScore.grade}</p>
                     <p className="text-sm text-gray-500 mt-1">
-                      {normalCount} healthy indicators • {abnormalCount} need attention
+                      {healthScore.normalCount} healthy indicators • {healthScore.abnormalCount} need attention
                     </p>
                   </div>
 
                   <div className="space-y-3 max-h-80 overflow-y-auto">
-                    <h3 className="font-semibold text-gray-800 dark:text-white mb-3">Health Assessment Details</h3>
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-3">Score Breakdown</h3>
                     {healthScore.details.map((detail, idx) => (
                       <motion.div key={idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.05 }} className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="font-medium text-gray-800 dark:text-white">{detail.metric}</span>
+                          <span className="font-medium text-gray-800 dark:text-white">{detail.label}</span>
                           {detail.isNormal ? (
-                            <span className="text-sm font-bold text-green-600 flex items-center gap-1">
-                              <CheckCircle size={14} /> Normal
-                            </span>
+                            <span className="text-sm font-bold text-green-600 flex items-center gap-1"><CheckCircle size={14} /> Normal</span>
                           ) : (
-                            <span className="text-sm font-bold text-red-600">
-                              -{detail.deduction} points
-                            </span>
+                            <span className="text-sm font-bold text-red-600">-{detail.deduction} points</span>
                           )}
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
@@ -694,8 +469,8 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
         ) : (
           <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-xl p-8 text-center">
             <Calendar className="text-yellow-600 dark:text-yellow-500 mx-auto mb-4" size={48} />
-            <h3 className="text-xl font-semibold text-yellow-800 dark:text-yellow-400 mb-2">{t('noDataRecords')}</h3>
-            <p className="text-yellow-600 dark:text-yellow-500">{t('addDataFirst')}</p>
+            <h3 className="text-xl font-semibold text-yellow-800 dark:text-yellow-400 mb-2">No Data Records</h3>
+            <p className="text-yellow-600 dark:text-yellow-500">Add your first health record to start analysis</p>
           </div>
         )}
       </div>
