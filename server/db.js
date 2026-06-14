@@ -1,18 +1,26 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
+const bcrypt = require('bcryptjs');
 
-// 确保 database 文件夹存在
-const dbDir = path.join(__dirname, '../database');
+// ===============================
+// 🚀 Railway 持久化存储
+// ===============================
+const dbDir = '/data';
+
+// 确保目录存在
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
-  console.log('Created database directory:', dbDir);
+  console.log('Created volume directory:', dbDir);
 }
 
 // 数据库文件路径
 const dbPath = path.join(dbDir, 'health.db');
 console.log('Database path:', dbPath);
 
+// ===============================
+// 🗄️ SQLite 连接
+// ===============================
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Database connection error:', err.message);
@@ -21,9 +29,12 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
-// 初始化数据库表
+// ===============================
+// 🧱 初始化表结构
+// ===============================
 db.serialize(() => {
-  // 用户表
+
+  // ===== users =====
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,31 +48,26 @@ db.serialize(() => {
       role TEXT DEFAULT 'user',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
-  `, (err) => {
-    if (err) console.error('Error creating users table:', err.message);
-    else console.log('Users table ready');
-  });
-  // 健康报告表
-db.run(`
-    CREATE TABLE IF NOT EXISTS health_reports (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        report_type TEXT NOT NULL,
-        report_date TEXT NOT NULL,
-        title TEXT NOT NULL,
-        summary TEXT NOT NULL,
-        good_points TEXT DEFAULT '[]',
-        improvement_points TEXT DEFAULT '[]',
-        metrics_data TEXT DEFAULT '{}',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-`, (err) => {
-    if (err) console.error('Error creating health_reports table:', err.message);
-    else console.log('Health_reports table ready');
-});
+  `);
 
-  // 健康记录表
+  // ===== health_reports =====
+  db.run(`
+    CREATE TABLE IF NOT EXISTS health_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      report_type TEXT NOT NULL,
+      report_date TEXT NOT NULL,
+      title TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      good_points TEXT DEFAULT '[]',
+      improvement_points TEXT DEFAULT '[]',
+      metrics_data TEXT DEFAULT '{}',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
+  // ===== health_records =====
   db.run(`
     CREATE TABLE IF NOT EXISTS health_records (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -97,12 +103,9 @@ db.run(`
       FOREIGN KEY (user_id) REFERENCES users (id),
       UNIQUE(user_id, date)
     )
-  `, (err) => {
-    if (err) console.error('Error creating health_records table:', err.message);
-    else console.log('Health_records table ready');
-  });
+  `);
 
-  // 健康目标表
+  // ===== health_goals =====
   db.run(`
     CREATE TABLE IF NOT EXISTS health_goals (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -118,12 +121,9 @@ db.run(`
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users (id)
     )
-  `, (err) => {
-    if (err) console.error('Error creating health_goals table:', err.message);
-    else console.log('Health_goals table ready');
-  });
+  `);
 
-  // 告警表
+  // ===== alerts =====
   db.run(`
     CREATE TABLE IF NOT EXISTS alerts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -137,12 +137,9 @@ db.run(`
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users (id)
     )
-  `, (err) => {
-    if (err) console.error('Error creating alerts table:', err.message);
-    else console.log('Alerts table ready');
-  });
+  `);
 
-  // 广场动态表
+  // ===== square_posts =====
   db.run(`
     CREATE TABLE IF NOT EXISTS square_posts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -153,12 +150,9 @@ db.run(`
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users (id)
     )
-  `, (err) => {
-    if (err) console.error('Error creating square_posts table:', err.message);
-    else console.log('Square_posts table ready');
-  });
+  `);
 
-  // 点赞记录表
+  // ===== square_likes =====
   db.run(`
     CREATE TABLE IF NOT EXISTS square_likes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -169,12 +163,9 @@ db.run(`
       FOREIGN KEY (user_id) REFERENCES users(id),
       UNIQUE(post_id, user_id)
     )
-  `, (err) => {
-    if (err) console.error('Error creating square_likes table:', err.message);
-    else console.log('Square_likes table ready');
-  });
+  `);
 
-  // 医疗报告表（修正：添加 db.run 执行）
+  // ===== medical_reports =====
   db.run(`
     CREATE TABLE IF NOT EXISTS medical_reports (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -186,12 +177,9 @@ db.run(`
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id)
     )
-  `, (err) => {
-    if (err) console.error('Error creating medical_reports table:', err.message);
-    else console.log('Medical_reports table ready');
-  });
+  `);
 
-  // 评论表
+  // ===== square_comments =====
   db.run(`
     CREATE TABLE IF NOT EXISTS square_comments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -202,12 +190,42 @@ db.run(`
       FOREIGN KEY (post_id) REFERENCES square_posts(id),
       FOREIGN KEY (user_id) REFERENCES users(id)
     )
-  `, (err) => {
-    if (err) console.error('Error creating square_comments table:', err.message);
-    else console.log('Square_comments table ready');
-  });
+  `);
 
-  console.log('✅ SQLite 数据库表初始化完成');
+  console.log('✅ SQLite tables initialized');
 });
+
+// ===============================
+// 👑 自动创建管理员账号
+// ===============================
+db.get(
+  `SELECT * FROM users WHERE email = ?`,
+  ['3321535932@qq.com'],
+  (err, row) => {
+    if (err) {
+      console.error('Admin check error:', err);
+      return;
+    }
+
+    if (!row) {
+      const hashedPassword = bcrypt.hashSync('3321535932', 10);
+
+      db.run(
+        `INSERT INTO users (name, email, password, role)
+         VALUES (?, ?, ?, ?)`,
+        ['Admin', '3321535932@qq.com', hashedPassword, 'admin'],
+        (err) => {
+          if (err) {
+            console.error('Create admin error:', err.message);
+          } else {
+            console.log('✅ Admin created: 3321535932@qq.com / 3321535932');
+          }
+        }
+      );
+    } else {
+      console.log('✅ Admin already exists');
+    }
+  }
+);
 
 module.exports = db;
