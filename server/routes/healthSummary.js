@@ -115,13 +115,20 @@ async function generateOneReport(userId, reportType, targetDate, isZh) {
     const weightChange = (firstWeight && lastWeight) ? (lastWeight - firstWeight).toFixed(1) : null;
     
     const metrics = { avgSteps, avgSleep, avgWeight, avgBmi, weightChange, recordCount: records.length };
-    
+
+    const summaryParts = [];
+    if (avgSteps !== null) summaryParts.push(`Avg steps: ${avgSteps}`);
+    if (avgSleep !== null) summaryParts.push(`Sleep: ${avgSleep}`);
+    if (avgBmi !== null) summaryParts.push(`BMI: ${avgBmi}`);
+    if (avgWeight !== null) summaryParts.push(`Weight: ${avgWeight} kg`);
+    const summary = summaryParts.length > 0 ? summaryParts.join(', ') : title;
+
     // 存储原始数据，前端负责翻译
     await new Promise((resolve, reject) => {
         db.run(
-            `INSERT INTO health_reports (user_id, report_type, report_date, title, metrics_data)
-             VALUES (?, ?, ?, ?, ?)`,
-            [userId, reportType, endDate, title, JSON.stringify(metrics)],
+            `INSERT INTO health_reports (user_id, report_type, report_date, title, summary, metrics_data)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [userId, reportType, endDate, title, summary, JSON.stringify(metrics)],
             (err) => {
                 if (err) return reject(err);
                 resolve();
