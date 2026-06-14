@@ -1,5 +1,5 @@
 import { User, HealthRecord } from '../App';
-import { Users, Calendar, BarChart3, Heart, Award, Sparkles, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Users, Calendar, BarChart3, Heart, Award, Sparkles, TrendingUp, TrendingDown, Minus, CheckCircle } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,30 +12,28 @@ interface HealthAnalysisProps {
 
 // 所有健康指标配置
 const ALL_METRICS = [
-  { key: 'weight', label: { zh: '体重', en: 'Weight' }, unit: 'kg', benchmark: null, getBenchmark: (user: User) => user ? (22 * Math.pow(user.height / 100, 2)) : 70, normalRange: { zh: 'BMI 18.5-24.9', en: 'BMI 18.5-24.9' }, higherIsBetter: false, color: '#3b82f6' },
-  { key: 'bmi', label: { zh: 'BMI', en: 'BMI' }, unit: '', benchmark: 22, getBenchmark: () => 22, normalRange: { zh: '18.5-24.9', en: '18.5-24.9' }, higherIsBetter: false, color: '#8b5cf6' },
-  { key: 'body_fat', label: { zh: '体脂率', en: 'Body Fat' }, unit: '%', benchmark: null, getBenchmark: (user: User) => user?.gender === 'male' ? 15 : 25, normalRange: { zh: '男10-20% / 女20-30%', en: 'Male 10-20% / Female 20-30%' }, higherIsBetter: false, color: '#f59e0b' },
-  { key: 'heart_rate', label: { zh: '心率', en: 'Heart Rate' }, unit: 'bpm', benchmark: null, getBenchmark: (user: User) => user?.gender === 'male' ? 68 : 72, normalRange: { zh: '60-100 bpm', en: '60-100 bpm' }, higherIsBetter: false, color: '#ef4444' },
-  { key: 'blood_pressure', label: { zh: '血压', en: 'Blood Pressure' }, unit: 'mmHg', benchmark: 120, getBenchmark: () => 120, normalRange: { zh: '90-120 mmHg', en: '90-120 mmHg' }, higherIsBetter: false, color: '#ec4899' },
-  { key: 'blood_sugar', label: { zh: '血糖', en: 'Blood Sugar' }, unit: 'mmol/L', benchmark: 5.0, getBenchmark: () => 5.0, normalRange: { zh: '3.9-6.1 mmol/L', en: '3.9-6.1 mmol/L' }, higherIsBetter: false, color: '#10b981' },
-  { key: 'muscle_mass', label: { zh: '肌肉量', en: 'Muscle Mass' }, unit: 'kg', benchmark: null, getBenchmark: (user: User) => user?.gender === 'male' ? 40 : 30, normalRange: { zh: '男35-45kg / 女25-35kg', en: 'Male 35-45kg / Female 25-35kg' }, higherIsBetter: true, color: '#6366f1' },
-  { key: 'body_water', label: { zh: '体水分', en: 'Body Water' }, unit: '%', benchmark: null, getBenchmark: (user: User) => user?.gender === 'male' ? 60 : 55, normalRange: { zh: '男55-65% / 女50-60%', en: 'Male 55-65% / Female 50-60%' }, higherIsBetter: true, color: '#14b8a6' },
-  { key: 'sleep_level', label: { zh: '睡眠等级', en: 'Sleep Score' }, unit: '分', benchmark: 80, getBenchmark: () => 80, normalRange: { zh: '70-100分', en: '70-100 points' }, higherIsBetter: true, color: '#6366f1' },
-  { key: 'steps', label: { zh: '步数', en: 'Steps' }, unit: '步', benchmark: 8000, getBenchmark: () => 8000, normalRange: { zh: '8000-10000步', en: '8000-10000 steps' }, higherIsBetter: true, color: '#10b981' },
-  { key: 'calories', label: { zh: '卡路里', en: 'Calories' }, unit: 'kcal', benchmark: 2000, getBenchmark: () => 2000, normalRange: { zh: '1800-2200 kcal', en: '1800-2200 kcal' }, higherIsBetter: false, color: '#f97316' },
-  { key: 'visceral_fat', label: { zh: '内脏脂肪', en: 'Visceral Fat' }, unit: '级', benchmark: 10, getBenchmark: () => 10, normalRange: { zh: '1-12级', en: 'Level 1-12' }, higherIsBetter: false, color: '#f97316' },
-  { key: 'basal_metabolic_rate', label: { zh: '基础代谢率', en: 'BMR' }, unit: 'kcal', benchmark: null, getBenchmark: (user: User) => user?.gender === 'male' ? 1600 : 1400, normalRange: { zh: '男1500-1800 / 女1200-1500', en: 'Male 1500-1800 / Female 1200-1500' }, higherIsBetter: true, color: '#8b5cf6' },
+  { key: 'weight', label: 'Weight', unit: 'kg', benchmark: null, getBenchmark: (user: User) => user ? (22 * Math.pow(user.height / 100, 2)) : 70, normalRange: 'BMI 18.5-24.9', higherIsBetter: false },
+  { key: 'bmi', label: 'BMI', unit: '', benchmark: 22, getBenchmark: () => 22, normalRange: '18.5-24.9', higherIsBetter: false },
+  { key: 'body_fat', label: 'Body Fat', unit: '%', benchmark: null, getBenchmark: (user: User) => user?.gender === 'male' ? 15 : 25, normalRange: 'Male 10-20% / Female 20-30%', higherIsBetter: false },
+  { key: 'heart_rate', label: 'Heart Rate', unit: 'bpm', benchmark: null, getBenchmark: (user: User) => user?.gender === 'male' ? 68 : 72, normalRange: '60-100 bpm', higherIsBetter: false },
+  { key: 'blood_pressure', label: 'Blood Pressure', unit: 'mmHg', benchmark: 120, getBenchmark: () => 120, normalRange: '90-120 mmHg', higherIsBetter: false },
+  { key: 'blood_sugar', label: 'Blood Sugar', unit: 'mmol/L', benchmark: 5.0, getBenchmark: () => 5.0, normalRange: '3.9-6.1 mmol/L', higherIsBetter: false },
+  { key: 'muscle_mass', label: 'Muscle Mass', unit: 'kg', benchmark: null, getBenchmark: (user: User) => user?.gender === 'male' ? 40 : 30, normalRange: 'Male 35-45kg / Female 25-35kg', higherIsBetter: true },
+  { key: 'body_water', label: 'Body Water', unit: '%', benchmark: null, getBenchmark: (user: User) => user?.gender === 'male' ? 60 : 55, normalRange: 'Male 55-65% / Female 50-60%', higherIsBetter: true },
+  { key: 'sleep_level', label: 'Sleep Score', unit: 'pts', benchmark: 80, getBenchmark: () => 80, normalRange: '70-100 points', higherIsBetter: true },
+  { key: 'steps', label: 'Steps', unit: 'steps', benchmark: 8000, getBenchmark: () => 8000, normalRange: '8000-10000 steps', higherIsBetter: true },
+  { key: 'calories', label: 'Calories', unit: 'kcal', benchmark: 2000, getBenchmark: () => 2000, normalRange: '1800-2200 kcal', higherIsBetter: false },
+  { key: 'visceral_fat', label: 'Visceral Fat', unit: 'level', benchmark: 10, getBenchmark: () => 10, normalRange: 'Level 1-12', higherIsBetter: false },
+  { key: 'basal_metabolic_rate', label: 'BMR', unit: 'kcal', benchmark: null, getBenchmark: (user: User) => user?.gender === 'male' ? 1600 : 1400, normalRange: 'Male 1500-1800 / Female 1200-1500', higherIsBetter: true },
 ];
 
-// 计算健康评分的函数
-const calculateHealthScoreData = (records: HealthRecord[], user: User | null, language: string) => {
+// 计算健康评分（扣分机制：从100分开始扣）
+const calculateHealthScoreData = (records: HealthRecord[], user: User | null) => {
   if (records.length === 0) return null;
   
-  const isZh = language === 'zh';
   const latestRecord = records[0];
-  let totalScore = 0;
-  let maxPossibleScore = 0;
-  const details: { metric: string; value: number; benchmark: number; points: number; maxPoints: number; suggestion: string }[] = [];
+  let totalDeduction = 0;
+  const details: { metric: string; value: number; benchmark: number; deduction: number; suggestion: string; isNormal: boolean }[] = [];
   
   for (const metric of ALL_METRICS) {
     let userValue: number | null = null;
@@ -50,174 +48,218 @@ const calculateHealthScoreData = (records: HealthRecord[], user: User | null, la
     if (userValue === null || userValue === undefined) continue;
     
     const benchmark = metric.getBenchmark ? metric.getBenchmark(user!) : metric.benchmark || 0;
-    let points = 0;
-    let maxPoints = 15;
+    let deduction = 0;
     let suggestion = '';
+    let isNormal = true;
     
     // ========== BMI 评分 ==========
     if (metric.key === 'bmi') {
       if (userValue >= 18.5 && userValue <= 24.9) {
-        points = 15;
-        suggestion = isZh ? 'BMI in normal range (18.5-24.9)' : 'BMI in normal range (18.5-24.9)';
+        deduction = 0;
+        suggestion = 'BMI in normal range (18.5-24.9)';
+        isNormal = true;
       } else if (userValue > 24.9 && userValue <= 27) {
-        points = 8;
-        suggestion = isZh ? 'BMI high (overweight), diet and exercise recommended (-7 points)' : 'BMI high (overweight), diet and exercise recommended (-7 points)';
+        deduction = 5;
+        suggestion = `BMI ${userValue} (overweight), recommended to control diet and exercise`;
+        isNormal = false;
       } else if (userValue > 27 && userValue <= 30) {
-        points = 3;
-        suggestion = isZh ? 'BMI too high (obese), weight management needed (-12 points)' : 'BMI too high (obese), weight management needed (-12 points)';
+        deduction = 10;
+        suggestion = `BMI ${userValue} (obese), weight management needed`;
+        isNormal = false;
       } else if (userValue > 30) {
-        points = 0;
-        suggestion = isZh ? 'BMI severely high (morbid obesity), consult a doctor (-15 points)' : 'BMI severely high (morbid obesity), consult a doctor (-15 points)';
+        deduction = 15;
+        suggestion = `BMI ${userValue} (severely obese), please consult a doctor`;
+        isNormal = false;
       } else if (userValue < 18.5 && userValue >= 17) {
-        points = 8;
-        suggestion = isZh ? 'BMI low (underweight), increase nutrition (-7 points)' : 'BMI low (underweight), increase nutrition (-7 points)';
+        deduction = 5;
+        suggestion = `BMI ${userValue} (underweight), increase nutrition intake`;
+        isNormal = false;
       } else if (userValue < 17) {
-        points = 0;
-        suggestion = isZh ? 'BMI severely low (malnutrition), consult a doctor (-15 points)' : 'BMI severely low (malnutrition), consult a doctor (-15 points)';
+        deduction = 15;
+        suggestion = `BMI ${userValue} (severely underweight), please consult a doctor`;
+        isNormal = false;
       }
     }
     // ========== 心率评分 ==========
     else if (metric.key === 'heart_rate') {
       if (userValue >= 60 && userValue <= 80) {
-        points = 15;
-        suggestion = isZh ? 'Heart rate normal (60-80 bpm), good cardiovascular health' : 'Heart rate normal (60-80 bpm), good cardiovascular health';
+        deduction = 0;
+        suggestion = 'Heart rate normal (60-80 bpm), good cardiovascular health';
+        isNormal = true;
       } else if (userValue > 80 && userValue <= 90) {
-        points = 10;
-        suggestion = isZh ? 'Heart rate high (80-90 bpm), rest recommended (-5 points)' : 'Heart rate high (80-90 bpm), rest recommended (-5 points)';
+        deduction = 5;
+        suggestion = `Heart rate ${userValue} bpm (slightly high), rest recommended`;
+        isNormal = false;
       } else if (userValue > 90 && userValue <= 100) {
-        points = 5;
-        suggestion = isZh ? 'Heart rate very high (90-100 bpm), needs attention (-10 points)' : 'Heart rate very high (90-100 bpm), needs attention (-10 points)';
+        deduction = 10;
+        suggestion = `Heart rate ${userValue} bpm (high), needs attention`;
+        isNormal = false;
       } else if (userValue > 100) {
-        points = 0;
-        suggestion = isZh ? 'Heart rate dangerously high (>100 bpm), see a doctor (-15 points)' : 'Heart rate dangerously high (>100 bpm), see a doctor (-15 points)';
+        deduction = 15;
+        suggestion = `Heart rate ${userValue} bpm (dangerously high), see a doctor`;
+        isNormal = false;
       } else if (userValue < 60 && userValue >= 55) {
-        points = 10;
-        suggestion = isZh ? 'Heart rate low (55-60 bpm), acceptable if no symptoms (-5 points)' : 'Heart rate low (55-60 bpm), acceptable if no symptoms (-5 points)';
+        deduction = 5;
+        suggestion = `Heart rate ${userValue} bpm (slightly low), acceptable if no symptoms`;
+        isNormal = false;
       } else if (userValue < 55 && userValue >= 50) {
-        points = 5;
-        suggestion = isZh ? 'Heart rate very low (50-55 bpm), consult doctor (-10 points)' : 'Heart rate very low (50-55 bpm), consult doctor (-10 points)';
+        deduction = 10;
+        suggestion = `Heart rate ${userValue} bpm (low), consult doctor`;
+        isNormal = false;
       } else if (userValue < 50) {
-        points = 0;
-        suggestion = isZh ? 'Heart rate dangerously low (<50 bpm), see a doctor (-15 points)' : 'Heart rate dangerously low (<50 bpm), see a doctor (-15 points)';
+        deduction = 15;
+        suggestion = `Heart rate ${userValue} bpm (dangerously low), see a doctor`;
+        isNormal = false;
       }
     }
     // ========== 血压评分 ==========
     else if (metric.key === 'blood_pressure') {
       if (userValue >= 90 && userValue <= 120) {
-        points = 15;
-        suggestion = isZh ? 'Blood pressure normal (90-120 mmHg), good cardiovascular health' : 'Blood pressure normal (90-120 mmHg), good cardiovascular health';
+        deduction = 0;
+        suggestion = 'Blood pressure normal (90-120 mmHg), good cardiovascular health';
+        isNormal = true;
       } else if (userValue > 120 && userValue <= 130) {
-        points = 10;
-        suggestion = isZh ? 'Blood pressure high (120-130 mmHg), reduce salt intake (-5 points)' : 'Blood pressure high (120-130 mmHg), reduce salt intake (-5 points)';
+        deduction = 5;
+        suggestion = `Blood pressure ${userValue} mmHg (high), reduce salt intake`;
+        isNormal = false;
       } else if (userValue > 130 && userValue <= 140) {
-        points = 5;
-        suggestion = isZh ? 'Blood pressure very high (130-140 mmHg), needs monitoring (-10 points)' : 'Blood pressure very high (130-140 mmHg), needs monitoring (-10 points)';
+        deduction = 10;
+        suggestion = `Blood pressure ${userValue} mmHg (very high), needs monitoring`;
+        isNormal = false;
       } else if (userValue > 140) {
-        points = 0;
-        suggestion = isZh ? 'Blood pressure dangerously high (>140 mmHg), see a doctor (-15 points)' : 'Blood pressure dangerously high (>140 mmHg), see a doctor (-15 points)';
+        deduction = 15;
+        suggestion = `Blood pressure ${userValue} mmHg (dangerously high), see a doctor`;
+        isNormal = false;
       } else if (userValue < 90 && userValue >= 80) {
-        points = 10;
-        suggestion = isZh ? 'Blood pressure low (80-90 mmHg), stay hydrated (-5 points)' : 'Blood pressure low (80-90 mmHg), stay hydrated (-5 points)';
+        deduction = 5;
+        suggestion = `Blood pressure ${userValue} mmHg (low), stay hydrated`;
+        isNormal = false;
       } else if (userValue < 80) {
-        points = 5;
-        suggestion = isZh ? 'Blood pressure too low (<80 mmHg), risk of dizziness (-10 points)' : 'Blood pressure too low (<80 mmHg), risk of dizziness (-10 points)';
+        deduction = 10;
+        suggestion = `Blood pressure ${userValue} mmHg (too low), risk of dizziness`;
+        isNormal = false;
       }
     }
     // ========== 血糖评分 ==========
     else if (metric.key === 'blood_sugar') {
       if (userValue >= 3.9 && userValue <= 5.6) {
-        points = 15;
-        suggestion = isZh ? 'Blood sugar normal (3.9-5.6 mmol/L), good metabolism' : 'Blood sugar normal (3.9-5.6 mmol/L), good metabolism';
+        deduction = 0;
+        suggestion = 'Blood sugar normal (3.9-5.6 mmol/L), good metabolism';
+        isNormal = true;
       } else if (userValue > 5.6 && userValue <= 6.1) {
-        points = 10;
-        suggestion = isZh ? 'Blood sugar slightly high (5.6-6.1 mmol/L), watch diet (-5 points)' : 'Blood sugar slightly high (5.6-6.1 mmol/L), watch diet (-5 points)';
+        deduction = 5;
+        suggestion = `Blood sugar ${userValue} mmol/L (slightly high), watch diet`;
+        isNormal = false;
       } else if (userValue > 6.1 && userValue <= 7.0) {
-        points = 5;
-        suggestion = isZh ? 'Blood sugar high (6.1-7.0 mmol/L), pre-diabetic (-10 points)' : 'Blood sugar high (6.1-7.0 mmol/L), pre-diabetic (-10 points)';
+        deduction = 10;
+        suggestion = `Blood sugar ${userValue} mmol/L (high), pre-diabetic`;
+        isNormal = false;
       } else if (userValue > 7.0) {
-        points = 0;
-        suggestion = isZh ? 'Blood sugar dangerously high (>7.0 mmol/L), see a doctor (-15 points)' : 'Blood sugar dangerously high (>7.0 mmol/L), see a doctor (-15 points)';
+        deduction = 15;
+        suggestion = `Blood sugar ${userValue} mmol/L (dangerously high), see a doctor`;
+        isNormal = false;
       } else if (userValue < 3.9 && userValue >= 3.0) {
-        points = 8;
-        suggestion = isZh ? 'Blood sugar low (3.0-3.9 mmol/L), eat something (-7 points)' : 'Blood sugar low (3.0-3.9 mmol/L), eat something (-7 points)';
+        deduction = 8;
+        suggestion = `Blood sugar ${userValue} mmol/L (low), eat something`;
+        isNormal = false;
       } else if (userValue < 3.0) {
-        points = 0;
-        suggestion = isZh ? 'Blood sugar critically low (<3.0 mmol/L), seek immediate care (-15 points)' : 'Blood sugar critically low (<3.0 mmol/L), seek immediate care (-15 points)';
+        deduction = 15;
+        suggestion = `Blood sugar ${userValue} mmol/L (critically low), seek immediate care`;
+        isNormal = false;
       }
     }
     // ========== 睡眠评分 ==========
     else if (metric.key === 'sleep_level') {
       if (userValue >= 85) {
-        points = 15;
-        suggestion = isZh ? 'Excellent sleep quality (≥85), maintain routine' : 'Excellent sleep quality (≥85), maintain routine';
+        deduction = 0;
+        suggestion = 'Excellent sleep quality (≥85), maintain routine';
+        isNormal = true;
       } else if (userValue >= 75) {
-        points = 12;
-        suggestion = isZh ? 'Good sleep quality (75-85), keep it up (-3 points)' : 'Good sleep quality (75-85), keep it up (-3 points)';
+        deduction = 3;
+        suggestion = `Sleep score ${userValue} (good), slight improvement possible`;
+        isNormal = false;
       } else if (userValue >= 65) {
-        points = 8;
-        suggestion = isZh ? 'Fair sleep quality (65-75), improve routine (-7 points)' : 'Fair sleep quality (65-75), improve routine (-7 points)';
+        deduction = 7;
+        suggestion = `Sleep score ${userValue} (fair), improve sleep routine`;
+        isNormal = false;
       } else if (userValue >= 50) {
-        points = 3;
-        suggestion = isZh ? 'Poor sleep quality (50-65), needs attention (-12 points)' : 'Poor sleep quality (50-65), needs attention (-12 points)';
+        deduction = 12;
+        suggestion = `Sleep score ${userValue} (poor), needs attention`;
+        isNormal = false;
       } else {
-        points = 0;
-        suggestion = isZh ? 'Very poor sleep quality (<50), consult a doctor (-15 points)' : 'Very poor sleep quality (<50), consult a doctor (-15 points)';
+        deduction = 15;
+        suggestion = `Sleep score ${userValue} (very poor), consult a doctor`;
+        isNormal = false;
       }
     }
     // ========== 步数评分 ==========
     else if (metric.key === 'steps') {
       if (userValue >= 12000) {
-        points = 15;
-        suggestion = isZh ? 'Excellent activity level (≥12000 steps), keep it up!' : 'Excellent activity level (≥12000 steps), keep it up!';
+        deduction = 0;
+        suggestion = 'Excellent activity level (≥12000 steps), keep it up!';
+        isNormal = true;
       } else if (userValue >= 10000) {
-        points = 13;
-        suggestion = isZh ? 'Great activity level (10000-12000 steps), great! (-2 points)' : 'Great activity level (10000-12000 steps), great! (-2 points)';
+        deduction = 2;
+        suggestion = `Great activity level (${userValue} steps), good!`;
+        isNormal = false;
       } else if (userValue >= 8000) {
-        points = 10;
-        suggestion = isZh ? 'Good activity level (8000-10000 steps), good (-5 points)' : 'Good activity level (8000-10000 steps), good (-5 points)';
+        deduction = 5;
+        suggestion = `Good activity level (${userValue} steps), meets minimum`;
+        isNormal = false;
       } else if (userValue >= 6000) {
-        points = 6;
-        suggestion = isZh ? 'Average activity (6000-8000 steps), increase activity (-9 points)' : 'Average activity (6000-8000 steps), increase activity (-9 points)';
+        deduction = 9;
+        suggestion = `Average activity (${userValue} steps), increase activity`;
+        isNormal = false;
       } else if (userValue >= 4000) {
-        points = 3;
-        suggestion = isZh ? 'Low activity (4000-6000 steps), need more exercise (-12 points)' : 'Low activity (4000-6000 steps), need more exercise (-12 points)';
+        deduction = 12;
+        suggestion = `Low activity (${userValue} steps), need more exercise`;
+        isNormal = false;
       } else {
-        points = 0;
-        suggestion = isZh ? 'Very low activity (<4000 steps), start exercising now (-15 points)' : 'Very low activity (<4000 steps), start exercising now (-15 points)';
+        deduction = 15;
+        suggestion = `Very low activity (${userValue} steps), start exercising now`;
+        isNormal = false;
       }
     }
     // ========== 体脂率评分 ==========
     else if (metric.key === 'body_fat') {
       const isMale = user?.gender === 'male';
       if ((isMale && userValue >= 10 && userValue <= 20) || (!isMale && userValue >= 18 && userValue <= 28)) {
-        points = 15;
-        suggestion = isZh ? 'Body fat is standard, healthy physique' : 'Body fat is standard, healthy physique';
+        deduction = 0;
+        suggestion = 'Body fat percentage is standard, healthy physique';
+        isNormal = true;
       } else if ((isMale && userValue > 20 && userValue <= 25) || (!isMale && userValue > 28 && userValue <= 32)) {
-        points = 8;
-        suggestion = isZh ? 'Body fat high, consider more cardio (-7 points)' : 'Body fat high, consider more cardio (-7 points)';
+        deduction = 7;
+        suggestion = `Body fat ${userValue}% (high), consider more cardio`;
+        isNormal = false;
       } else if ((isMale && userValue > 25 && userValue <= 30) || (!isMale && userValue > 32 && userValue <= 35)) {
-        points = 3;
-        suggestion = isZh ? 'Body fat too high, need more exercise (-12 points)' : 'Body fat too high, need more exercise (-12 points)';
+        deduction = 12;
+        suggestion = `Body fat ${userValue}% (too high), need more exercise`;
+        isNormal = false;
       } else {
-        points = 0;
-        suggestion = isZh ? 'Body fat severely high, consult a fitness trainer (-15 points)' : 'Body fat severely high, consult a fitness trainer (-15 points)';
+        deduction = 15;
+        suggestion = `Body fat ${userValue}% (severely high), consult a fitness trainer`;
+        isNormal = false;
       }
     }
     // ========== 肌肉量评分 ==========
     else if (metric.key === 'muscle_mass') {
       const isMale = user?.gender === 'male';
       if ((isMale && userValue >= 40) || (!isMale && userValue >= 30)) {
-        points = 15;
-        suggestion = isZh ? 'Good muscle mass, healthy metabolism' : 'Good muscle mass, healthy metabolism';
+        deduction = 0;
+        suggestion = 'Good muscle mass, healthy metabolism';
+        isNormal = true;
       } else if ((isMale && userValue >= 35 && userValue < 40) || (!isMale && userValue >= 25 && userValue < 30)) {
-        points = 10;
-        suggestion = isZh ? 'Normal muscle mass, consider strength training (-5 points)' : 'Normal muscle mass, consider strength training (-5 points)';
+        deduction = 5;
+        suggestion = `Muscle mass ${userValue}kg (normal), consider strength training`;
+        isNormal = false;
       } else if ((isMale && userValue >= 30 && userValue < 35) || (!isMale && userValue >= 20 && userValue < 25)) {
-        points = 5;
-        suggestion = isZh ? 'Low muscle mass, consider strength training (-10 points)' : 'Low muscle mass, consider strength training (-10 points)';
+        deduction = 10;
+        suggestion = `Muscle mass ${userValue}kg (low), consider strength training`;
+        isNormal = false;
       } else {
-        points = 0;
-        suggestion = isZh ? 'Very low muscle mass, need strength training (-15 points)' : 'Very low muscle mass, need strength training (-15 points)';
+        deduction = 15;
+        suggestion = `Muscle mass ${userValue}kg (very low), need strength training`;
+        isNormal = false;
       }
     }
     // ========== 体水分评分 ==========
@@ -226,42 +268,53 @@ const calculateHealthScoreData = (records: HealthRecord[], user: User | null, la
       const idealWater = isMale ? 60 : 55;
       const percentDiff = Math.abs(userValue - idealWater) / idealWater;
       if (percentDiff <= 0.05) {
-        points = 15;
-        suggestion = isZh ? `Body water normal (${userValue}%), well hydrated` : `Body water normal (${userValue}%), well hydrated`;
+        deduction = 0;
+        suggestion = `Body water ${userValue}%, well hydrated`;
+        isNormal = true;
       } else if (percentDiff <= 0.1) {
-        points = 10;
-        suggestion = isZh ? `Body water slightly off (±${(percentDiff * 100).toFixed(0)}%), stay hydrated (-5 points)` : `Body water slightly off (±${(percentDiff * 100).toFixed(0)}%), stay hydrated (-5 points)`;
+        deduction = 5;
+        suggestion = `Body water ${userValue}% (slightly off), stay hydrated`;
+        isNormal = false;
       } else if (percentDiff <= 0.2) {
-        points = 5;
-        suggestion = isZh ? `Body water significantly off, drink more water (-10 points)` : `Body water significantly off, drink more water (-10 points)`;
+        deduction = 10;
+        suggestion = `Body water ${userValue}% (significantly off), drink more water`;
+        isNormal = false;
       } else {
-        points = 0;
-        suggestion = isZh ? `Body water severely abnormal, consult a doctor (-15 points)` : `Body water severely abnormal, consult a doctor (-15 points)`;
+        deduction = 15;
+        suggestion = `Body water ${userValue}% (severely abnormal), consult a doctor`;
+        isNormal = false;
       }
     }
     // ========== 卡路里评分 ==========
     else if (metric.key === 'calories') {
       if (userValue >= 1800 && userValue <= 2200) {
-        points = 15;
-        suggestion = isZh ? `Calorie intake normal (${userValue} kcal), good diet` : `Calorie intake normal (${userValue} kcal), good diet`;
+        deduction = 0;
+        suggestion = `Calorie intake ${userValue} kcal, good diet`;
+        isNormal = true;
       } else if (userValue >= 1500 && userValue < 1800) {
-        points = 8;
-        suggestion = isZh ? `Calorie intake low (${userValue} kcal), need more nutrition (-7 points)` : `Calorie intake low (${userValue} kcal), need more nutrition (-7 points)`;
+        deduction = 7;
+        suggestion = `Calorie intake ${userValue} kcal (low), need more nutrition`;
+        isNormal = false;
       } else if (userValue >= 1000 && userValue < 1500) {
-        points = 3;
-        suggestion = isZh ? `Calorie intake very low (${userValue} kcal), significantly under-eating (-12 points)` : `Calorie intake very low (${userValue} kcal), significantly under-eating (-12 points)`;
+        deduction = 12;
+        suggestion = `Calorie intake ${userValue} kcal (very low), significantly under-eating`;
+        isNormal = false;
       } else if (userValue < 1000) {
-        points = 0;
-        suggestion = isZh ? `Calorie intake dangerously low (<1000 kcal), seek medical advice (-15 points)` : `Calorie intake dangerously low (<1000 kcal), seek medical advice (-15 points)`;
+        deduction = 15;
+        suggestion = `Calorie intake ${userValue} kcal (dangerously low), seek medical advice`;
+        isNormal = false;
       } else if (userValue > 2200 && userValue <= 2500) {
-        points = 10;
-        suggestion = isZh ? `Calorie intake high (2200-2500 kcal), watch your intake (-5 points)` : `Calorie intake high (2200-2500 kcal), watch your intake (-5 points)`;
+        deduction = 5;
+        suggestion = `Calorie intake ${userValue} kcal (high), watch your intake`;
+        isNormal = false;
       } else if (userValue > 2500 && userValue <= 3000) {
-        points = 5;
-        suggestion = isZh ? `Calorie intake very high (2500-3000 kcal), reduce intake (-10 points)` : `Calorie intake very high (2500-3000 kcal), reduce intake (-10 points)`;
+        deduction = 10;
+        suggestion = `Calorie intake ${userValue} kcal (very high), reduce intake`;
+        isNormal = false;
       } else if (userValue > 3000) {
-        points = 0;
-        suggestion = isZh ? `Calorie intake dangerously high (>3000 kcal), consult a doctor (-15 points)` : `Calorie intake dangerously high (>3000 kcal), consult a doctor (-15 points)`;
+        deduction = 15;
+        suggestion = `Calorie intake ${userValue} kcal (dangerously high), consult a doctor`;
+        isNormal = false;
       }
     }
     // ========== 体重评分（与理想体重对比） ==========
@@ -269,66 +322,68 @@ const calculateHealthScoreData = (records: HealthRecord[], user: User | null, la
       const idealWeight = user ? 22 * Math.pow(user.height / 100, 2) : 70;
       const percentDiff = Math.abs(userValue - idealWeight) / idealWeight;
       if (percentDiff <= 0.05) {
-        points = 15;
-        suggestion = isZh ? `Ideal weight (${userValue} kg), ${(percentDiff * 100).toFixed(0)}% from standard` : `Ideal weight (${userValue} kg), ${(percentDiff * 100).toFixed(0)}% from standard`;
+        deduction = 0;
+        suggestion = `Weight ${userValue} kg, ideal weight (±${(percentDiff * 100).toFixed(0)}%)`;
+        isNormal = true;
       } else if (percentDiff <= 0.1) {
-        points = 10;
-        suggestion = isZh ? `Slightly off weight (±${(percentDiff * 100).toFixed(0)}%), pay attention (-5 points)` : `Slightly off weight (±${(percentDiff * 100).toFixed(0)}%), pay attention (-5 points)`;
+        deduction = 5;
+        suggestion = `Weight ${userValue} kg (slightly off), pay attention`;
+        isNormal = false;
       } else if (percentDiff <= 0.2) {
-        points = 5;
-        suggestion = isZh ? `Significantly off weight (±${(percentDiff * 100).toFixed(0)}%), consider management (-10 points)` : `Significantly off weight (±${(percentDiff * 100).toFixed(0)}%), consider management (-10 points)`;
+        deduction = 10;
+        suggestion = `Weight ${userValue} kg (significantly off), consider management`;
+        isNormal = false;
       } else {
-        points = 0;
-        suggestion = isZh ? `Severely off weight (±${(percentDiff * 100).toFixed(0)}%), needs attention (-15 points)` : `Severely off weight (±${(percentDiff * 100).toFixed(0)}%), needs attention (-15 points)`;
+        deduction = 15;
+        suggestion = `Weight ${userValue} kg (severely off), needs attention`;
+        isNormal = false;
       }
     }
     // ========== 其他指标通用评分 ==========
     else {
       const percentDiff = Math.abs(userValue - benchmark) / benchmark;
-      if (percentDiff <= 0.05) {
-        points = 15;
-        suggestion = `${metric.label.en} is excellent`;
-      } else if (percentDiff <= 0.1) {
-        points = 10;
-        suggestion = `${metric.label.en} is good (-5 points)`;
+      if (percentDiff <= 0.1) {
+        deduction = 0;
+        suggestion = `${metric.label} is normal`;
+        isNormal = true;
       } else if (percentDiff <= 0.2) {
-        points = 5;
-        suggestion = `${metric.label.en} is fair (-10 points)`;
+        deduction = 8;
+        suggestion = `${metric.label} ${userValue} (slightly off), pay attention`;
+        isNormal = false;
       } else {
-        points = 0;
-        suggestion = `${metric.label.en} is poor (-15 points)`;
+        deduction = 15;
+        suggestion = `${metric.label} ${userValue} (abnormal), needs attention`;
+        isNormal = false;
       }
     }
     
-    totalScore += points;
-    maxPossibleScore += maxPoints;
+    totalDeduction += deduction;
     details.push({
-      metric: metric.label.en,
+      metric: metric.label,
       value: userValue,
       benchmark,
-      points,
-      maxPoints,
+      deduction,
       suggestion,
+      isNormal,
     });
   }
   
-  // 计算百分比得分
-  const percentageScore = Math.round((totalScore / maxPossibleScore) * 100);
+  // 最终得分 = 100 - 总扣分，最低不低于0
+  const finalScore = Math.max(0, 100 - totalDeduction);
   
   let grade = '';
   let gradeColor = '';
-  if (percentageScore >= 90) { grade = 'Excellent'; gradeColor = 'text-green-600'; }
-  else if (percentageScore >= 75) { grade = 'Good'; gradeColor = 'text-blue-600'; }
-  else if (percentageScore >= 60) { grade = 'Fair'; gradeColor = 'text-yellow-600'; }
+  if (finalScore >= 90) { grade = 'Excellent'; gradeColor = 'text-green-600'; }
+  else if (finalScore >= 75) { grade = 'Good'; gradeColor = 'text-blue-600'; }
+  else if (finalScore >= 60) { grade = 'Fair'; gradeColor = 'text-yellow-600'; }
   else { grade = 'Needs Attention'; gradeColor = 'text-red-600'; }
   
   return { 
-    score: percentageScore, 
+    score: finalScore, 
     grade, 
     gradeColor, 
     details,
-    totalEarned: totalScore,
-    totalPossible: maxPossibleScore
+    totalDeduction
   };
 };
 
@@ -340,11 +395,11 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
   const [isCalculating, setIsCalculating] = useState(false);
   const [showScore, setShowScore] = useState(false);
   const [scoreAnimation, setScoreAnimation] = useState(false);
-  const [healthScore, setHealthScore] = useState<{ score: number; grade: string; gradeColor: string; details: { metric: string; value: number; benchmark: number; points: number; suggestion: string }[] } | null>(null);
+  const [healthScore, setHealthScore] = useState<{ score: number; grade: string; gradeColor: string; details: { metric: string; value: number; benchmark: number; deduction: number; suggestion: string; isNormal: boolean }[]; totalDeduction: number } | null>(null);
 
   const currentMetric = ALL_METRICS.find(m => m.key === selectedMetric) || ALL_METRICS[0];
-  const currentMetricLabel = currentMetric.label[language];
-  const currentNormalRange = currentMetric.normalRange[language];
+  const currentMetricLabel = currentMetric.label;
+  const currentNormalRange = currentMetric.normalRange;
   
   const getBenchmarkValue = (metric: typeof currentMetric): number => {
     if (metric.getBenchmark) {
@@ -416,7 +471,7 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
     setShowScore(false);
     
     setTimeout(() => {
-      const result = calculateHealthScoreData(healthRecords, user, 'en');
+      const result = calculateHealthScoreData(healthRecords, user);
       setHealthScore(result);
       setShowScore(true);
       setScoreAnimation(true);
@@ -427,6 +482,10 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
 
   const ageGroup = user ? `${Math.floor(user.age / 10) * 10}-${Math.floor(user.age / 10) * 10 + 9}` : '30-39';
   const genderText = user?.gender === 'male' ? 'Male' : 'Female';
+
+  // 统计正常和不正常的指标数量
+  const normalCount = healthScore?.details.filter(d => d.isNormal).length || 0;
+  const abnormalCount = healthScore?.details.filter(d => !d.isNormal).length || 0;
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -502,7 +561,6 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
                   <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 z-10 max-h-64 overflow-y-auto">
                     {ALL_METRICS.map(metric => {
                       const hasData = getUserAverage(metric.key) !== null;
-                      const metricLabel = metric.label[language];
                       return (
                         <button
                           key={metric.key}
@@ -514,10 +572,10 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
                           className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left ${!hasData ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                           <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                            <span className="text-sm font-medium">{metricLabel.charAt(0)}</span>
+                            <span className="text-sm font-medium">{metric.label.charAt(0)}</span>
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-gray-800 dark:text-white">{metricLabel}</p>
+                            <p className="text-sm font-medium text-gray-800 dark:text-white">{metric.label}</p>
                             <p className="text-xs text-gray-500">{metric.unit}</p>
                           </div>
                           {!hasData && <span className="ml-auto text-xs text-gray-400">{t('noData')}</span>}
@@ -591,26 +649,39 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
                 <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }} className="mt-4">
                   <div className="text-center mb-6">
                     <div className={`relative inline-block ${scoreAnimation ? 'animate-pulse' : ''}`}>
-                      <div className="w-40 h-40 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto shadow-lg"><span className="text-5xl font-bold text-white">{healthScore.score}</span></div>
-                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring' }} className="absolute -top-2 -right-2 bg-yellow-400 rounded-full p-2"><Award size={20} className="text-white" /></motion.div>
+                      <div className="w-40 h-40 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto shadow-lg">
+                        <span className="text-5xl font-bold text-white">{healthScore.score}</span>
+                      </div>
+                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring' }} className="absolute -top-2 -right-2 bg-yellow-400 rounded-full p-2">
+                        <Award size={20} className="text-white" />
+                      </motion.div>
                     </div>
                     <p className={`mt-3 font-bold text-xl ${healthScore.gradeColor}`}>{healthScore.grade}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {normalCount} healthy indicators • {abnormalCount} need attention
+                    </p>
                   </div>
 
                   <div className="space-y-3 max-h-80 overflow-y-auto">
-                    <h3 className="font-semibold text-gray-800 dark:text-white mb-3">{t('scoreBasis')}</h3>
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-3">Health Assessment Details</h3>
                     {healthScore.details.map((detail, idx) => (
                       <motion.div key={idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.05 }} className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700">
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-medium text-gray-800 dark:text-white">{detail.metric}</span>
-                          <span className={`text-sm font-bold ${detail.points >= 10 ? 'text-green-600' : detail.points >= 5 ? 'text-yellow-600' : 'text-red-600'}`}>
-                            {detail.points >= 10 ? '+' : ''}{detail.points} {t('points')}
-                          </span>
+                          {detail.isNormal ? (
+                            <span className="text-sm font-bold text-green-600 flex items-center gap-1">
+                              <CheckCircle size={14} /> Normal
+                            </span>
+                          ) : (
+                            <span className="text-sm font-bold text-red-600">
+                              -{detail.deduction} points
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                          <span>{t('yourValue')}: {detail.value.toFixed(1)}</span>
+                          <span>Your Value: {detail.value.toFixed(1)}</span>
                           <span>•</span>
-                          <span>{t('benchmark')}: {detail.benchmark.toFixed(1)}</span>
+                          <span>Benchmark: {detail.benchmark.toFixed(1)}</span>
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">{detail.suggestion}</p>
                       </motion.div>
