@@ -33,13 +33,12 @@ const calculateHealthScoreData = (records: HealthRecord[], user: User | null, la
   
   const isZh = language === 'zh';
   const latestRecord = records[0];
-  let totalScore = 70; // 基础分
+  let totalScore = 70;
   const details: { metric: string; value: number; benchmark: number; points: number; suggestion: string }[] = [];
   
   for (const metric of ALL_METRICS) {
     let userValue: number | null = null;
     
-    // 获取用户值
     if (metric.key === 'blood_pressure' && latestRecord.blood_pressure) {
       const bpParts = latestRecord.blood_pressure.split('/');
       userValue = parseInt(bpParts[0]);
@@ -53,7 +52,6 @@ const calculateHealthScoreData = (records: HealthRecord[], user: User | null, la
     let points = 0;
     let suggestion = '';
     
-    // BMI 评分
     if (metric.key === 'bmi') {
       if (userValue >= 18.5 && userValue <= 24.9) { points = 15; suggestion = isZh ? 'BMI在正常范围内，很好！' : 'BMI is within normal range, great!'; }
       else if (userValue > 24.9 && userValue < 28) { points = 8; suggestion = isZh ? 'BMI偏高，建议控制饮食增加运动。' : 'BMI is high, consider diet control and more exercise.'; }
@@ -61,7 +59,6 @@ const calculateHealthScoreData = (records: HealthRecord[], user: User | null, la
       else if (userValue < 18.5 && userValue >= 17) { points = 5; suggestion = isZh ? 'BMI偏低，建议增加营养摄入。' : 'BMI is low, consider increasing nutrition intake.'; }
       else if (userValue < 17) { points = 0; suggestion = isZh ? 'BMI严重偏低，请咨询医生。' : 'BMI is severely low, please consult a doctor.'; }
     }
-    // 心率评分
     else if (metric.key === 'heart_rate') {
       if (userValue >= 60 && userValue <= 80) { points = 15; suggestion = isZh ? '心率正常，心血管健康良好。' : 'Heart rate is normal, cardiovascular health is good.'; }
       else if (userValue > 80 && userValue <= 100) { points = 8; suggestion = isZh ? '心率偏高，建议适当休息。' : 'Heart rate is high, consider resting more.'; }
@@ -69,13 +66,11 @@ const calculateHealthScoreData = (records: HealthRecord[], user: User | null, la
       else if (userValue < 60 && userValue >= 50) { points = 5; suggestion = isZh ? '心率偏低，如无不适属正常。' : 'Heart rate is low, normal if no discomfort.'; }
       else if (userValue < 50) { points = 0; suggestion = isZh ? '心率过低，请咨询医生。' : 'Heart rate is too low, please consult a doctor.'; }
     }
-    // 血压评分
     else if (metric.key === 'blood_pressure') {
       if (userValue <= 120) { points = 15; suggestion = isZh ? '血压正常，心血管健康。' : 'Blood pressure is normal, cardiovascular health is good.'; }
       else if (userValue <= 140) { points = 8; suggestion = isZh ? '血压偏高，注意低盐饮食。' : 'Blood pressure is high, watch your salt intake.'; }
       else { points = 0; suggestion = isZh ? '血压过高，请及时就医。' : 'Blood pressure is too high, please consult a doctor.'; }
     }
-    // 血糖评分
     else if (metric.key === 'blood_sugar') {
       if (userValue >= 3.9 && userValue <= 6.1) { points = 15; suggestion = isZh ? '血糖正常，代谢良好。' : 'Blood sugar is normal, good metabolism.'; }
       else if (userValue > 6.1 && userValue <= 7.0) { points = 5; suggestion = isZh ? '血糖偏高，注意饮食控制。' : 'Blood sugar is high, watch your diet.'; }
@@ -83,35 +78,30 @@ const calculateHealthScoreData = (records: HealthRecord[], user: User | null, la
       else if (userValue < 3.9 && userValue >= 3.0) { points = 5; suggestion = isZh ? '血糖偏低，及时补充能量。' : 'Blood sugar is low, replenish energy.'; }
       else if (userValue < 3.0) { points = 0; suggestion = isZh ? '血糖严重偏低，立即就医。' : 'Blood sugar is critically low, seek immediate medical attention.'; }
     }
-    // 睡眠评分
     else if (metric.key === 'sleep_level') {
       if (userValue >= 85) { points = 15; suggestion = isZh ? '睡眠质量优秀！' : 'Excellent sleep quality!'; }
       else if (userValue >= 70) { points = 10; suggestion = isZh ? '睡眠质量良好。' : 'Good sleep quality.'; }
       else if (userValue >= 60) { points = 5; suggestion = isZh ? '睡眠质量一般，建议改善作息。' : 'Average sleep quality, consider improving your routine.'; }
       else { points = 0; suggestion = isZh ? '睡眠质量差，需要重点关注。' : 'Poor sleep quality, needs attention.'; }
     }
-    // 步数评分
     else if (metric.key === 'steps') {
       if (userValue >= 10000) { points = 15; suggestion = isZh ? '运动量充足，继续保持！' : 'Great activity level, keep it up!'; }
       else if (userValue >= 8000) { points = 10; suggestion = isZh ? '运动量良好，再努力一下。' : 'Good activity level, keep pushing.'; }
       else if (userValue >= 5000) { points = 5; suggestion = isZh ? '运动量不足，建议增加活动。' : 'Low activity level, consider moving more.'; }
       else { points = 0; suggestion = isZh ? '运动量严重不足。' : 'Very low activity level.'; }
     }
-    // 体脂率评分
     else if (metric.key === 'body_fat') {
       const isMale = user?.gender === 'male';
       if ((isMale && userValue <= 20) || (!isMale && userValue <= 28)) { points = 15; suggestion = isZh ? '体脂率标准，身材健康。' : 'Body fat is standard, healthy physique.'; }
       else if ((isMale && userValue <= 25) || (!isMale && userValue <= 32)) { points = 8; suggestion = isZh ? '体脂率偏高，建议增加有氧运动。' : 'Body fat is high, consider more cardio.'; }
       else { points = 0; suggestion = isZh ? '体脂率过高，需要加强锻炼。' : 'Body fat is too high, need more exercise.'; }
     }
-    // 肌肉量评分
     else if (metric.key === 'muscle_mass') {
       const isMale = user?.gender === 'male';
       if ((isMale && userValue >= 38) || (!isMale && userValue >= 28)) { points = 15; suggestion = isZh ? '肌肉量充足，基础代谢良好。' : 'Good muscle mass, healthy metabolism.'; }
       else if ((isMale && userValue >= 35) || (!isMale && userValue >= 25)) { points = 8; suggestion = isZh ? '肌肉量正常，可适当增加力量训练。' : 'Normal muscle mass, consider strength training.'; }
       else { points = 0; suggestion = isZh ? '肌肉量不足，建议增加力量训练。' : 'Low muscle mass, consider strength training.'; }
     }
-    // 体重评分（与理想体重对比）
     else if (metric.key === 'weight') {
       const idealWeight = user ? 22 * Math.pow(user.height / 100, 2) : 70;
       const percentDiff = Math.abs(userValue - idealWeight) / idealWeight;
@@ -120,7 +110,6 @@ const calculateHealthScoreData = (records: HealthRecord[], user: User | null, la
       else if (percentDiff <= 0.2) { points = 3; suggestion = isZh ? '体重偏离较多，建议管理。' : 'Significantly off ideal weight, consider management.'; }
       else { points = 0; suggestion = isZh ? '体重严重偏离，需要关注。' : 'Severely off ideal weight, needs attention.'; }
     }
-    // 其他指标
     else {
       const percentDiff = Math.abs(userValue - benchmark) / benchmark;
       if (percentDiff <= 0.1) { points = 15; suggestion = `${metric.label[isZh ? 'zh' : 'en']} ${isZh ? '指标正常，继续保持。' : 'is normal, keep it up.'}`; }
@@ -128,7 +117,7 @@ const calculateHealthScoreData = (records: HealthRecord[], user: User | null, la
       else { points = 0; suggestion = `${metric.label[isZh ? 'zh' : 'en']} ${isZh ? '指标异常，需要关注。' : 'is abnormal, needs attention.'}`; }
     }
     
-    totalScore += points - 5; // 基础分5分，加实际得分减5
+    totalScore += points - 5;
     details.push({
       metric: metric.label[isZh ? 'zh' : 'en'],
       value: userValue,
@@ -140,7 +129,6 @@ const calculateHealthScoreData = (records: HealthRecord[], user: User | null, la
   
   totalScore = Math.min(Math.max(Math.round(totalScore), 0), 100);
   
-  // 获取健康等级
   let grade = '';
   let gradeColor = '';
   if (totalScore >= 90) { grade = isZh ? '优秀' : 'Excellent'; gradeColor = 'text-green-600'; }
@@ -161,12 +149,10 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
   const [scoreAnimation, setScoreAnimation] = useState(false);
   const [healthScore, setHealthScore] = useState<{ score: number; grade: string; gradeColor: string; details: { metric: string; value: number; benchmark: number; points: number; suggestion: string }[] } | null>(null);
 
-  // 获取当前选中指标的配置
   const currentMetric = ALL_METRICS.find(m => m.key === selectedMetric) || ALL_METRICS[0];
   const currentMetricLabel = currentMetric.label[language];
   const currentNormalRange = currentMetric.normalRange[language];
   
-  // 获取基准值
   const getBenchmarkValue = (metric: typeof currentMetric): number => {
     if (metric.getBenchmark) {
       return metric.getBenchmark(user!);
@@ -174,7 +160,6 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
     return metric.benchmark || 0;
   };
 
-  // 计算用户平均值
   const getUserAverage = (metricKey: string): number | null => {
     const values = healthRecords
       .map(r => {
@@ -190,7 +175,6 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
     return values.reduce((a, b) => a + b, 0) / values.length;
   };
 
-  // 准备柱状图数据
   const chartData = useMemo(() => {
     const userValue = getUserAverage(selectedMetric);
     const benchmarkValue = getBenchmarkValue(currentMetric);
@@ -203,7 +187,6 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
     ];
   }, [selectedMetric, healthRecords, user, currentMetric, t]);
 
-  // 计算差异和状态
   const comparison = useMemo(() => {
     const userValue = getUserAverage(selectedMetric);
     const benchmarkValue = getBenchmarkValue(currentMetric);
@@ -235,7 +218,6 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
     };
   }, [selectedMetric, healthRecords, user, currentMetric, t]);
 
-  // 计算健康评分
   const calculateHealthScore = () => {
     setIsCalculating(true);
     setShowScore(false);
@@ -250,7 +232,6 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
     }, 800);
   };
 
-  // 年龄组
   const ageGroup = user ? `${Math.floor(user.age / 10) * 10}-${Math.floor(user.age / 10) * 10 + 9}` : '30-39';
   const genderText = language === 'zh' ? (user?.gender === 'male' ? '男性' : '女性') : (user?.gender === 'male' ? 'Male' : 'Female');
 
@@ -264,7 +245,6 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
       <div className="space-y-6">
         {healthRecords.length > 0 ? (
           <>
-            {/* 统计概览 */}
             <div className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-2xl p-6 shadow-lg">
               <div className="flex items-start justify-between mb-4">
                 <div>
@@ -293,7 +273,6 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
               </div>
             </div>
 
-            {/* 年龄组信息 */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-4">
                 <Users className="text-indigo-600" size={24} />
@@ -307,7 +286,6 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
               <p className="text-gray-600 dark:text-gray-400">{t('selectMetricToCompare')}</p>
             </div>
 
-            {/* 指标选择器 */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
               <div className="relative">
                 <button
@@ -358,7 +336,6 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
               </div>
             </div>
 
-            {/* 竖版柱状图 */}
             {chartData && (
               <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
                 <div className="text-center mb-6">
@@ -372,72 +349,34 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                       <XAxis dataKey="name" stroke="#6b7280" />
                       <YAxis stroke="#6b7280" domain={[0, 'auto']} label={{ value: currentMetric.unit, angle: -90, position: 'insideLeft', style: { fontSize: '12px', fill: '#6b7280' } }} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#fff', border: 'none', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                        formatter={(value: any) => [`${value} ${currentMetric.unit}`, '']}
-                      />
+                      <Tooltip contentStyle={{ backgroundColor: '#fff', border: 'none', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(value: any) => [`${value} ${currentMetric.unit}`, '']} />
                       <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                        {chartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
+                        {chartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
 
-                {/* 对比详情卡片 */}
                 {comparison && (
                   <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
                     <div className="grid grid-cols-3 gap-4 text-center">
-                      <div>
-                        <p className="text-xs text-gray-500">{t('yourAverage')}</p>
-                        <p className="text-xl font-bold text-indigo-600">{chartData[0].value.toFixed(1)} {currentMetric.unit}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">{t('healthBenchmark')}</p>
-                        <p className="text-xl font-bold text-gray-600">{chartData[1].value.toFixed(1)} {currentMetric.unit}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">{t('difference')}</p>
-                        <p className={`text-xl font-bold ${comparison.statusColor}`}>
-                          {comparison.isHigher ? '+' : '-'}{comparison.diff} {currentMetric.unit}
-                          <span className="text-sm ml-1">({comparison.percentDiff}%)</span>
-                        </p>
-                      </div>
+                      <div><p className="text-xs text-gray-500">{t('yourAverage')}</p><p className="text-xl font-bold text-indigo-600">{chartData[0].value.toFixed(1)} {currentMetric.unit}</p></div>
+                      <div><p className="text-xs text-gray-500">{t('healthBenchmark')}</p><p className="text-xl font-bold text-gray-600">{chartData[1].value.toFixed(1)} {currentMetric.unit}</p></div>
+                      <div><p className="text-xs text-gray-500">{t('difference')}</p><p className={`text-xl font-bold ${comparison.statusColor}`}>{comparison.isHigher ? '+' : '-'}{comparison.diff} {currentMetric.unit}<span className="text-sm ml-1">({comparison.percentDiff}%)</span></p></div>
                     </div>
-                    <div className="mt-3 text-center">
-                      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${comparison.statusColor} bg-opacity-10 bg-gray-100`}>
-                        {comparison.statusText === 'normal' && <Minus size={14} />}
-                        {comparison.statusText === 'aboveBenchmark' && <TrendingUp size={14} />}
-                        {comparison.statusText === 'belowBenchmark' && <TrendingDown size={14} />}
-                        {comparison.statusText}
-                      </span>
-                    </div>
+                    <div className="mt-3 text-center"><span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${comparison.statusColor} bg-opacity-10 bg-gray-100`}>{comparison.statusText === 'normal' && <Minus size={14} />}{comparison.statusText === 'aboveBenchmark' && <TrendingUp size={14} />}{comparison.statusText === 'belowBenchmark' && <TrendingDown size={14} />}{comparison.statusText}</span></div>
                   </div>
                 )}
               </div>
             )}
 
-            {/* 健康评分卡片 - 已更新 */}
             <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 rounded-2xl p-6 shadow-lg border border-indigo-100 dark:border-indigo-800">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-3 rounded-xl">
-                    <Award className="text-white" size={24} />
-                  </div>
-                  <div>
-                    <h2 className="text-gray-800 dark:text-white font-semibold text-lg">{t('healthScoreAssessment')}</h2>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{t('comprehensiveEvaluation')}</p>
-                  </div>
+                  <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-3 rounded-xl"><Award className="text-white" size={24} /></div>
+                  <div><h2 className="text-gray-800 dark:text-white font-semibold text-lg">{t('healthScoreAssessment')}</h2><p className="text-sm text-gray-600 dark:text-gray-400">{t('comprehensiveEvaluation')}</p></div>
                 </div>
-                <button
-                  onClick={calculateHealthScore}
-                  disabled={isCalculating}
-                  className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 flex items-center gap-2"
-                >
-                  <Sparkles size={18} />
-                  {isCalculating ? t('assessing') : t('startAssessment')}
-                </button>
+                <button onClick={calculateHealthScore} disabled={isCalculating} className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 flex items-center gap-2"><Sparkles size={18} />{isCalculating ? t('assessing') : t('startAssessment')}</button>
               </div>
 
               <AnimatePresence>
@@ -445,12 +384,8 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex justify-center items-center py-12">
                     <div className="text-center">
                       <div className="relative w-32 h-32 mx-auto">
-                        <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, 360] }} transition={{ duration: 1.5, repeat: Infinity }} className="absolute inset-0">
-                          <Heart className="w-full h-full text-pink-500" />
-                        </motion.div>
-                        <motion.div animate={{ scale: [0, 1.5], opacity: [1, 0] }} transition={{ duration: 0.5, repeat: Infinity }} className="absolute inset-0 flex items-center justify-center">
-                          <Sparkles className="text-yellow-400" size={40} />
-                        </motion.div>
+                        <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, 360] }} transition={{ duration: 1.5, repeat: Infinity }} className="absolute inset-0"><Heart className="w-full h-full text-pink-500" /></motion.div>
+                        <motion.div animate={{ scale: [0, 1.5], opacity: [1, 0] }} transition={{ duration: 0.5, repeat: Infinity }} className="absolute inset-0 flex items-center justify-center"><Sparkles className="text-yellow-400" size={40} /></motion.div>
                       </div>
                       <p className="mt-4 text-gray-600 dark:text-gray-400">{t('analyzingData')}</p>
                       <p className="text-sm text-gray-500 mt-2">{t('collectingCalculatingSuggesting')}</p>
@@ -463,11 +398,34 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
                 <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }} className="mt-4">
                   <div className="text-center mb-6">
                     <div className={`relative inline-block ${scoreAnimation ? 'animate-pulse' : ''}`}>
-                      <div className="w-40 h-40 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto shadow-lg">
-                        <span className="text-5xl font-bold text-white">{healthScore.score}</span>
-                      </div>
-                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring' }} className="absolute -top-2 -right-2 bg-yellow-400 rounded-full p-2">
-                        <Award size={20} className="text-white" />
-                      </motion.div>
+                      <div className="w-40 h-40 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto shadow-lg"><span className="text-5xl font-bold text-white">{healthScore.score}</span></div>
+                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring' }} className="absolute -top-2 -right-2 bg-yellow-400 rounded-full p-2"><Award size={20} className="text-white" /></motion.div>
                     </div>
-                    <p className={`mt-3 font-bold text-xl
+                    <p className={`mt-3 font-bold text-xl ${healthScore.gradeColor}`}>{healthScore.grade}</p>
+                  </div>
+
+                  <div className="space-y-3 max-h-80 overflow-y-auto">
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-3">{t('scoreBasis')}</h3>
+                    {healthScore.details.map((detail, idx) => (
+                      <motion.div key={idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.05 }} className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700">
+                        <div className="flex items-center justify-between mb-1"><span className="font-medium text-gray-800 dark:text-white">{detail.metric}</span><span className={`text-sm font-bold ${detail.points >= 8 ? 'text-green-600' : detail.points >= 5 ? 'text-yellow-600' : 'text-red-600'}`}>+{detail.points} {t('points')}</span></div>
+                        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"><span>{t('yourValue')}: {detail.value.toFixed(1)}</span><span>•</span><span>{t('benchmark')}: {detail.benchmark.toFixed(1)}</span></div>
+                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">{detail.suggestion}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-xl p-8 text-center">
+            <Calendar className="text-yellow-600 dark:text-yellow-500 mx-auto mb-4" size={48} />
+            <h3 className="text-xl font-semibold text-yellow-800 dark:text-yellow-400 mb-2">{t('noDataRecords')}</h3>
+            <p className="text-yellow-600 dark:text-yellow-500">{t('addDataFirst')}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
