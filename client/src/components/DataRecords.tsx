@@ -7,38 +7,67 @@ interface DataRecordsProps {
   user: User | null;
   healthRecords: HealthRecord[];
   onDeleteRecord: (date: string) => void;
-  onDeleteAllRecords?: () => void;  // 新增：一键删除所有记录
+  onDeleteAllRecords?: () => void;
 }
 
 export function DataRecords({ user, healthRecords, onDeleteRecord, onDeleteAllRecords }: DataRecordsProps) {
-  const { t, formatDate, formatShortDate } = useLanguage();
+  const { t, language, formatDate, formatShortDate } = useLanguage();
+  const isZh = language === 'zh';
   const [selectedRecord, setSelectedRecord] = useState<HealthRecord | null>(null);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
-  const metricLabels: Record<string, string> = {
-    weight: '体重 (kg)',
-    bmi: 'BMI',
-    body_fat: '体脂率 (%)',
-    body_water: '体水分量 (kg)',
-    body_fat_mass: '脂肪量 (kg)',
-    bone_mass: '骨盐量 (kg)',
-    protein: '蛋白质量 (kg)',
-    muscle_mass: '肌肉量 (kg)',
-    heart_rate: '心率 (bpm)',
-    blood_pressure: '血压 (mmHg)',
-    blood_sugar: '血糖 (mmol/L)',
-    sleep_level: '睡眠等级',
-    steps: '步数',
-    calories: '卡路里 (kcal)',
-    visceral_fat: '内脏脂肪等级',
-    basal_metabolic_rate: '基础代谢率 (kcal)',
-    body_age: '身体年龄 (岁)',
+  // 指标名称翻译函数
+  const getMetricLabel = (key: string): string => {
+    const labels: Record<string, { zh: string; en: string }> = {
+      weight: { zh: '体重 (kg)', en: 'Weight (kg)' },
+      bmi: { zh: 'BMI', en: 'BMI' },
+      body_fat: { zh: '体脂率 (%)', en: 'Body Fat (%)' },
+      body_fat_mass: { zh: '脂肪量 (kg)', en: 'Fat Mass (kg)' },
+      body_water: { zh: '体水分量 (kg)', en: 'Body Water (kg)' },
+      body_water_rate: { zh: '体水分率 (%)', en: 'Body Water Rate (%)' },
+      protein: { zh: '蛋白质量 (kg)', en: 'Protein (kg)' },
+      protein_rate: { zh: '蛋白质率 (%)', en: 'Protein Rate (%)' },
+      muscle_mass: { zh: '肌肉量 (kg)', en: 'Muscle Mass (kg)' },
+      muscle_rate: { zh: '肌肉率 (%)', en: 'Muscle Rate (%)' },
+      skeletal_muscle_mass: { zh: '骨骼肌量 (kg)', en: 'Skeletal Muscle (kg)' },
+      bone_mass: { zh: '骨盐量 (kg)', en: 'Bone Mass (kg)' },
+      bone_mass_rate: { zh: '骨盐率 (%)', en: 'Bone Mass Rate (%)' },
+      lean_body_mass: { zh: '去脂体重 (kg)', en: 'Lean Body Mass (kg)' },
+      visceral_fat: { zh: '内脏脂肪等级', en: 'Visceral Fat Level' },
+      waist_hip_ratio: { zh: '腰臀比', en: 'Waist-Hip Ratio' },
+      body_age: { zh: '身体年龄 (岁)', en: 'Body Age (years)' },
+      basal_metabolic_rate: { zh: '基础代谢 (kcal)', en: 'BMR (kcal)' },
+      heart_rate: { zh: '心率 (bpm)', en: 'Heart Rate (bpm)' },
+      blood_pressure: { zh: '血压 (mmHg)', en: 'Blood Pressure (mmHg)' },
+      blood_sugar: { zh: '血糖 (mmol/L)', en: 'Blood Sugar (mmol/L)' },
+      blood_oxygen: { zh: '血氧 (%)', en: 'Blood Oxygen (%)' },
+      sleep_level: { zh: '睡眠等级', en: 'Sleep Score' },
+      stress_level: { zh: '压力等级', en: 'Stress Level' },
+      steps: { zh: '步数', en: 'Steps' },
+      calories: { zh: '卡路里 (kcal)', en: 'Calories (kcal)' },
+    };
+    
+    return labels[key]?.[isZh ? 'zh' : 'en'] || key;
+  };
+
+  // CSV 导出时的表头（需要固定英文，便于数据分析）
+  const getExportHeaders = () => {
+    return [
+      t('date'),
+      'Weight(kg)',
+      'BMI',
+      'Body Fat(%)',
+      'Heart Rate(bpm)',
+      'Sleep Score',
+      'Steps',
+      'Calories(kcal)'
+    ];
   };
 
   const handleExport = () => {
     if (healthRecords.length === 0) return;
     
-    const headers = [t('date'), 'Weight(kg)', 'BMI', 'Body Fat(%)', 'Heart Rate(bpm)', 'Sleep', 'Steps', 'Calories(kcal)'];
+    const headers = getExportHeaders();
     const rows = healthRecords.map(record => [
       record.date,
       record.weight || '',
@@ -183,7 +212,7 @@ export function DataRecords({ user, healthRecords, onDeleteRecord, onDeleteAllRe
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                       {Object.entries(record).map(([key, value]) => {
                         if (key === 'date' || key === 'id' || key === 'user_id' || key === 'created_at' || value === undefined || value === null) return null;
-                        const label = metricLabels[key] || key;
+                        const label = getMetricLabel(key);
                         const displayValue = typeof value === 'number' ? value.toFixed(1) : value;
                         return (
                           <div key={key} className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
