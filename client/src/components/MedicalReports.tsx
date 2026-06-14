@@ -43,6 +43,9 @@ const CHART_TYPES = [
 
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
+// API 基础地址（使用 Railway 后端）
+const API_BASE = 'https://final-production-4362.up.railway.app/api';
+
 export function MedicalReports({ user }: MedicalReportsProps) {
     const { language } = useLanguage();
     const [reports, setReports] = useState<MedicalReport[]>([]);
@@ -64,7 +67,6 @@ export function MedicalReports({ user }: MedicalReportsProps) {
         file: null as File | null
     });
     
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
     const token = localStorage.getItem('token');
     const isZh = language === 'zh';
 
