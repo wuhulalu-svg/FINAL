@@ -27,14 +27,139 @@ const ALL_METRICS = [
   { key: 'basal_metabolic_rate', label: { zh: '基础代谢率', en: 'BMR' }, unit: 'kcal', benchmark: null, getBenchmark: (user: User) => user?.gender === 'male' ? 1600 : 1400, normalRange: { zh: '男1500-1800 / 女1200-1500', en: 'Male 1500-1800 / Female 1200-1500' }, higherIsBetter: true, color: '#8b5cf6' },
 ];
 
+// 计算健康评分的函数
+const calculateHealthScoreData = (records: HealthRecord[], user: User | null, language: string) => {
+  if (records.length === 0) return null;
+  
+  const isZh = language === 'zh';
+  const latestRecord = records[0];
+  let totalScore = 70; // 基础分
+  const details: { metric: string; value: number; benchmark: number; points: number; suggestion: string }[] = [];
+  
+  for (const metric of ALL_METRICS) {
+    let userValue: number | null = null;
+    
+    // 获取用户值
+    if (metric.key === 'blood_pressure' && latestRecord.blood_pressure) {
+      const bpParts = latestRecord.blood_pressure.split('/');
+      userValue = parseInt(bpParts[0]);
+    } else {
+      userValue = latestRecord[metric.key as keyof HealthRecord] as number | null;
+    }
+    
+    if (userValue === null || userValue === undefined) continue;
+    
+    const benchmark = metric.getBenchmark ? metric.getBenchmark(user!) : metric.benchmark || 0;
+    let points = 0;
+    let suggestion = '';
+    
+    // BMI 评分
+    if (metric.key === 'bmi') {
+      if (userValue >= 18.5 && userValue <= 24.9) { points = 15; suggestion = isZh ? 'BMI在正常范围内，很好！' : 'BMI is within normal range, great!'; }
+      else if (userValue > 24.9 && userValue < 28) { points = 8; suggestion = isZh ? 'BMI偏高，建议控制饮食增加运动。' : 'BMI is high, consider diet control and more exercise.'; }
+      else if (userValue >= 28) { points = 0; suggestion = isZh ? 'BMI过高，需要重视体重管理。' : 'BMI is too high, need to focus on weight management.'; }
+      else if (userValue < 18.5 && userValue >= 17) { points = 5; suggestion = isZh ? 'BMI偏低，建议增加营养摄入。' : 'BMI is low, consider increasing nutrition intake.'; }
+      else if (userValue < 17) { points = 0; suggestion = isZh ? 'BMI严重偏低，请咨询医生。' : 'BMI is severely low, please consult a doctor.'; }
+    }
+    // 心率评分
+    else if (metric.key === 'heart_rate') {
+      if (userValue >= 60 && userValue <= 80) { points = 15; suggestion = isZh ? '心率正常，心血管健康良好。' : 'Heart rate is normal, cardiovascular health is good.'; }
+      else if (userValue > 80 && userValue <= 100) { points = 8; suggestion = isZh ? '心率偏高，建议适当休息。' : 'Heart rate is high, consider resting more.'; }
+      else if (userValue > 100) { points = 0; suggestion = isZh ? '心率过高，请及时就医检查。' : 'Heart rate is too high, please consult a doctor.'; }
+      else if (userValue < 60 && userValue >= 50) { points = 5; suggestion = isZh ? '心率偏低，如无不适属正常。' : 'Heart rate is low, normal if no discomfort.'; }
+      else if (userValue < 50) { points = 0; suggestion = isZh ? '心率过低，请咨询医生。' : 'Heart rate is too low, please consult a doctor.'; }
+    }
+    // 血压评分
+    else if (metric.key === 'blood_pressure') {
+      if (userValue <= 120) { points = 15; suggestion = isZh ? '血压正常，心血管健康。' : 'Blood pressure is normal, cardiovascular health is good.'; }
+      else if (userValue <= 140) { points = 8; suggestion = isZh ? '血压偏高，注意低盐饮食。' : 'Blood pressure is high, watch your salt intake.'; }
+      else { points = 0; suggestion = isZh ? '血压过高，请及时就医。' : 'Blood pressure is too high, please consult a doctor.'; }
+    }
+    // 血糖评分
+    else if (metric.key === 'blood_sugar') {
+      if (userValue >= 3.9 && userValue <= 6.1) { points = 15; suggestion = isZh ? '血糖正常，代谢良好。' : 'Blood sugar is normal, good metabolism.'; }
+      else if (userValue > 6.1 && userValue <= 7.0) { points = 5; suggestion = isZh ? '血糖偏高，注意饮食控制。' : 'Blood sugar is high, watch your diet.'; }
+      else if (userValue > 7.0) { points = 0; suggestion = isZh ? '血糖过高，请就医检查。' : 'Blood sugar is too high, please consult a doctor.'; }
+      else if (userValue < 3.9 && userValue >= 3.0) { points = 5; suggestion = isZh ? '血糖偏低，及时补充能量。' : 'Blood sugar is low, replenish energy.'; }
+      else if (userValue < 3.0) { points = 0; suggestion = isZh ? '血糖严重偏低，立即就医。' : 'Blood sugar is critically low, seek immediate medical attention.'; }
+    }
+    // 睡眠评分
+    else if (metric.key === 'sleep_level') {
+      if (userValue >= 85) { points = 15; suggestion = isZh ? '睡眠质量优秀！' : 'Excellent sleep quality!'; }
+      else if (userValue >= 70) { points = 10; suggestion = isZh ? '睡眠质量良好。' : 'Good sleep quality.'; }
+      else if (userValue >= 60) { points = 5; suggestion = isZh ? '睡眠质量一般，建议改善作息。' : 'Average sleep quality, consider improving your routine.'; }
+      else { points = 0; suggestion = isZh ? '睡眠质量差，需要重点关注。' : 'Poor sleep quality, needs attention.'; }
+    }
+    // 步数评分
+    else if (metric.key === 'steps') {
+      if (userValue >= 10000) { points = 15; suggestion = isZh ? '运动量充足，继续保持！' : 'Great activity level, keep it up!'; }
+      else if (userValue >= 8000) { points = 10; suggestion = isZh ? '运动量良好，再努力一下。' : 'Good activity level, keep pushing.'; }
+      else if (userValue >= 5000) { points = 5; suggestion = isZh ? '运动量不足，建议增加活动。' : 'Low activity level, consider moving more.'; }
+      else { points = 0; suggestion = isZh ? '运动量严重不足。' : 'Very low activity level.'; }
+    }
+    // 体脂率评分
+    else if (metric.key === 'body_fat') {
+      const isMale = user?.gender === 'male';
+      if ((isMale && userValue <= 20) || (!isMale && userValue <= 28)) { points = 15; suggestion = isZh ? '体脂率标准，身材健康。' : 'Body fat is standard, healthy physique.'; }
+      else if ((isMale && userValue <= 25) || (!isMale && userValue <= 32)) { points = 8; suggestion = isZh ? '体脂率偏高，建议增加有氧运动。' : 'Body fat is high, consider more cardio.'; }
+      else { points = 0; suggestion = isZh ? '体脂率过高，需要加强锻炼。' : 'Body fat is too high, need more exercise.'; }
+    }
+    // 肌肉量评分
+    else if (metric.key === 'muscle_mass') {
+      const isMale = user?.gender === 'male';
+      if ((isMale && userValue >= 38) || (!isMale && userValue >= 28)) { points = 15; suggestion = isZh ? '肌肉量充足，基础代谢良好。' : 'Good muscle mass, healthy metabolism.'; }
+      else if ((isMale && userValue >= 35) || (!isMale && userValue >= 25)) { points = 8; suggestion = isZh ? '肌肉量正常，可适当增加力量训练。' : 'Normal muscle mass, consider strength training.'; }
+      else { points = 0; suggestion = isZh ? '肌肉量不足，建议增加力量训练。' : 'Low muscle mass, consider strength training.'; }
+    }
+    // 体重评分（与理想体重对比）
+    else if (metric.key === 'weight') {
+      const idealWeight = user ? 22 * Math.pow(user.height / 100, 2) : 70;
+      const percentDiff = Math.abs(userValue - idealWeight) / idealWeight;
+      if (percentDiff <= 0.05) { points = 15; suggestion = isZh ? '体重理想，保持良好！' : 'Ideal weight, keep it up!'; }
+      else if (percentDiff <= 0.1) { points = 8; suggestion = isZh ? '体重略偏离理想值，注意调整。' : 'Slightly off ideal weight, pay attention.'; }
+      else if (percentDiff <= 0.2) { points = 3; suggestion = isZh ? '体重偏离较多，建议管理。' : 'Significantly off ideal weight, consider management.'; }
+      else { points = 0; suggestion = isZh ? '体重严重偏离，需要关注。' : 'Severely off ideal weight, needs attention.'; }
+    }
+    // 其他指标
+    else {
+      const percentDiff = Math.abs(userValue - benchmark) / benchmark;
+      if (percentDiff <= 0.1) { points = 15; suggestion = `${metric.label[isZh ? 'zh' : 'en']} ${isZh ? '指标正常，继续保持。' : 'is normal, keep it up.'}`; }
+      else if (percentDiff <= 0.2) { points = 8; suggestion = `${metric.label[isZh ? 'zh' : 'en']} ${isZh ? '指标略有偏差，注意调整。' : 'is slightly off, pay attention.'}`; }
+      else { points = 0; suggestion = `${metric.label[isZh ? 'zh' : 'en']} ${isZh ? '指标异常，需要关注。' : 'is abnormal, needs attention.'}`; }
+    }
+    
+    totalScore += points - 5; // 基础分5分，加实际得分减5
+    details.push({
+      metric: metric.label[isZh ? 'zh' : 'en'],
+      value: userValue,
+      benchmark,
+      points,
+      suggestion,
+    });
+  }
+  
+  totalScore = Math.min(Math.max(Math.round(totalScore), 0), 100);
+  
+  // 获取健康等级
+  let grade = '';
+  let gradeColor = '';
+  if (totalScore >= 90) { grade = isZh ? '优秀' : 'Excellent'; gradeColor = 'text-green-600'; }
+  else if (totalScore >= 75) { grade = isZh ? '良好' : 'Good'; gradeColor = 'text-blue-600'; }
+  else if (totalScore >= 60) { grade = isZh ? '一般' : 'Fair'; gradeColor = 'text-yellow-600'; }
+  else { grade = isZh ? '需要关注' : 'Needs Attention'; gradeColor = 'text-red-600'; }
+  
+  return { score: totalScore, grade, gradeColor, details };
+};
+
 export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
   const { t, language, formatDate, formatShortDate } = useLanguage();
+  const isZh = language === 'zh';
   const [selectedMetric, setSelectedMetric] = useState<string>('bmi');
   const [showMetricSelector, setShowMetricSelector] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [showScore, setShowScore] = useState(false);
   const [scoreAnimation, setScoreAnimation] = useState(false);
-  const [healthScore, setHealthScore] = useState<{ score: number; details: { metric: string; value: number; benchmark: number; points: number; suggestion: string }[] } | null>(null);
+  const [healthScore, setHealthScore] = useState<{ score: number; grade: string; gradeColor: string; details: { metric: string; value: number; benchmark: number; points: number; suggestion: string }[] } | null>(null);
 
   // 获取当前选中指标的配置
   const currentMetric = ALL_METRICS.find(m => m.key === selectedMetric) || ALL_METRICS[0];
@@ -116,85 +241,13 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
     setShowScore(false);
     
     setTimeout(() => {
-      let totalScore = 80;
-      const details: { metric: string; value: number; benchmark: number; points: number; suggestion: string }[] = [];
-      
-      for (const metric of ALL_METRICS) {
-        const userValue = getUserAverage(metric.key);
-        if (userValue === null) continue;
-        
-        const benchmark = getBenchmarkValue(metric);
-        let points = 0;
-        let suggestion = '';
-        
-        if (metric.key === 'bmi') {
-          if (userValue >= 18.5 && userValue <= 24.9) { points = 10; suggestion = language === 'zh' ? 'BMI在正常范围内，很好！' : 'BMI is within normal range, great!'; }
-          else if (userValue > 24.9 && userValue < 28) { points = 5; suggestion = language === 'zh' ? 'BMI偏高，建议控制饮食增加运动。' : 'BMI is high, consider diet control and more exercise.'; }
-          else if (userValue >= 28) { points = 0; suggestion = language === 'zh' ? 'BMI过高，需要重视体重管理。' : 'BMI is too high, need to focus on weight management.'; }
-          else if (userValue < 18.5) { points = 5; suggestion = language === 'zh' ? 'BMI偏低，建议增加营养摄入。' : 'BMI is low, consider increasing nutrition intake.'; }
-        }
-        else if (metric.key === 'heart_rate') {
-          if (userValue >= 60 && userValue <= 80) { points = 10; suggestion = language === 'zh' ? '心率正常，心血管健康良好。' : 'Heart rate is normal, cardiovascular health is good.'; }
-          else if (userValue > 80 && userValue <= 100) { points = 5; suggestion = language === 'zh' ? '心率偏高，建议适当休息。' : 'Heart rate is high, consider resting more.'; }
-          else if (userValue > 100) { points = 0; suggestion = language === 'zh' ? '心率过高，请及时就医检查。' : 'Heart rate is too high, please consult a doctor.'; }
-          else if (userValue < 60) { points = 5; suggestion = language === 'zh' ? '心率偏低，如无不适属正常。' : 'Heart rate is low, normal if no discomfort.'; }
-        }
-        else if (metric.key === 'blood_pressure') {
-          if (userValue <= 120) { points = 10; suggestion = language === 'zh' ? '血压正常，心血管健康。' : 'Blood pressure is normal, cardiovascular health is good.'; }
-          else if (userValue <= 140) { points = 5; suggestion = language === 'zh' ? '血压偏高，注意低盐饮食。' : 'Blood pressure is high, watch your salt intake.'; }
-          else { points = 0; suggestion = language === 'zh' ? '血压过高，请及时就医。' : 'Blood pressure is too high, please consult a doctor.'; }
-        }
-        else if (metric.key === 'sleep_level') {
-          if (userValue >= 85) { points = 10; suggestion = language === 'zh' ? '睡眠质量优秀！' : 'Excellent sleep quality!'; }
-          else if (userValue >= 70) { points = 7; suggestion = language === 'zh' ? '睡眠质量良好。' : 'Good sleep quality.'; }
-          else if (userValue >= 60) { points = 4; suggestion = language === 'zh' ? '睡眠质量一般，建议改善作息。' : 'Average sleep quality, consider improving your routine.'; }
-          else { points = 0; suggestion = language === 'zh' ? '睡眠质量差，需要重点关注。' : 'Poor sleep quality, needs attention.'; }
-        }
-        else if (metric.key === 'steps') {
-          if (userValue >= 10000) { points = 10; suggestion = language === 'zh' ? '运动量充足，继续保持！' : 'Great activity level, keep it up!'; }
-          else if (userValue >= 8000) { points = 7; suggestion = language === 'zh' ? '运动量良好，再努力一下。' : 'Good activity level, keep pushing.'; }
-          else if (userValue >= 5000) { points = 4; suggestion = language === 'zh' ? '运动量不足，建议增加活动。' : 'Low activity level, consider moving more.'; }
-          else { points = 0; suggestion = language === 'zh' ? '运动量严重不足。' : 'Very low activity level.'; }
-        }
-        else if (metric.key === 'body_fat') {
-          const isMale = user?.gender === 'male';
-          if ((isMale && userValue <= 20) || (!isMale && userValue <= 28)) { points = 10; suggestion = language === 'zh' ? '体脂率标准，身材健康。' : 'Body fat is standard, healthy physique.'; }
-          else if ((isMale && userValue <= 25) || (!isMale && userValue <= 32)) { points = 5; suggestion = language === 'zh' ? '体脂率偏高，建议增加有氧运动。' : 'Body fat is high, consider more cardio.'; }
-          else { points = 0; suggestion = language === 'zh' ? '体脂率过高，需要加强锻炼。' : 'Body fat is too high, need more exercise.'; }
-        }
-        else if (metric.key === 'muscle_mass') {
-          const isMale = user?.gender === 'male';
-          if ((isMale && userValue >= 38) || (!isMale && userValue >= 28)) { points = 10; suggestion = language === 'zh' ? '肌肉量充足，基础代谢良好。' : 'Good muscle mass, healthy metabolism.'; }
-          else if ((isMale && userValue >= 35) || (!isMale && userValue >= 25)) { points = 5; suggestion = language === 'zh' ? '肌肉量正常，可适当增加力量训练。' : 'Normal muscle mass, consider strength training.'; }
-          else { points = 0; suggestion = language === 'zh' ? '肌肉量不足，建议增加力量训练。' : 'Low muscle mass, consider strength training.'; }
-        }
-        else {
-          const diff = Math.abs(userValue - benchmark);
-          const percentDiff = diff / benchmark;
-          if (percentDiff <= 0.1) { points = 10; suggestion = `${metric.label[language]} ${language === 'zh' ? '指标正常，继续保持。' : 'is normal, keep it up.'}`; }
-          else if (percentDiff <= 0.2) { points = 5; suggestion = `${metric.label[language]} ${language === 'zh' ? '指标略有偏差，注意调整。' : 'is slightly off, pay attention.'}`; }
-          else { points = 0; suggestion = `${metric.label[language]} ${language === 'zh' ? '指标异常，需要关注。' : 'is abnormal, needs attention.'}`; }
-        }
-        
-        details.push({
-          metric: metric.label[language],
-          value: userValue,
-          benchmark,
-          points,
-          suggestion,
-        });
-        
-        totalScore += points - 5;
-      }
-      
-      totalScore = Math.min(Math.max(totalScore, 0), 100);
-      
-      setHealthScore({ score: totalScore, details });
+      const result = calculateHealthScoreData(healthRecords, user, language);
+      setHealthScore(result);
       setShowScore(true);
       setScoreAnimation(true);
       setTimeout(() => setScoreAnimation(false), 1000);
       setIsCalculating(false);
-    }, 1500);
+    }, 800);
   };
 
   // 年龄组
@@ -365,7 +418,7 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
               </div>
             )}
 
-            {/* 健康评分卡片 */}
+            {/* 健康评分卡片 - 已更新 */}
             <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 rounded-2xl p-6 shadow-lg border border-indigo-100 dark:border-indigo-800">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -417,40 +470,4 @@ export function HealthAnalysis({ user, healthRecords }: HealthAnalysisProps) {
                         <Award size={20} className="text-white" />
                       </motion.div>
                     </div>
-                    <p className="mt-3 text-gray-700 dark:text-gray-300 font-medium">
-                      {healthScore.score >= 90 ? t('excellent') : healthScore.score >= 70 ? t('good') : healthScore.score >= 50 ? t('fair') : t('poor')}
-                    </p>
-                  </div>
-
-                  <div className="space-y-3 max-h-80 overflow-y-auto">
-                    <h3 className="font-semibold text-gray-800 dark:text-white mb-3">{t('scoreBasis')}</h3>
-                    {healthScore.details.map((detail, idx) => (
-                      <motion.div key={idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.05 }} className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-medium text-gray-800 dark:text-white">{detail.metric}</span>
-                          <span className={`text-sm font-bold ${detail.points >= 8 ? 'text-green-600' : detail.points >= 5 ? 'text-yellow-600' : 'text-red-600'}`}>+{detail.points} {t('points')}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                          <span>{t('yourValue')}: {detail.value.toFixed(1)}</span>
-                          <span>•</span>
-                          <span>{t('benchmark')}: {detail.benchmark.toFixed(1)}</span>
-                        </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">{detail.suggestion}</p>
-                      </motion.div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-xl p-8 text-center">
-            <Calendar className="text-yellow-600 dark:text-yellow-500 mx-auto mb-4" size={48} />
-            <h3 className="text-xl font-semibold text-yellow-800 dark:text-yellow-400 mb-2">{t('noDataRecords')}</h3>
-            <p className="text-yellow-600 dark:text-yellow-500">{t('addDataFirst')}</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+                    <p className={`mt-3 font-bold text-xl
