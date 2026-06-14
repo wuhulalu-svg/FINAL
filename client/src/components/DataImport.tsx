@@ -306,59 +306,51 @@ else if (file.name.endsWith('.csv')) {
 
       const lines = content
         .split(/\r?\n/)
-        .filter(line => line.trim().length > 0);
+        .map(l => l.trim())
+        .filter(l => l.length > 0);
 
       if (lines.length < 2) {
         showToast(`❌ ${t('invalidFile')}`, 'error');
         return;
       }
 
-      // ==================== 1. 解析表头（支持 CSV / TSV） ====================
-      let headerLine = lines[0];
+      // ==================== 1. 统一 delimiter（关键修复） ====================
+      const headerLine = lines[0].replace(/^"|"$/g, '');
+      const delimiter = headerLine.includes('\t') ? '\t' : ',';
 
-      let headerMatch = headerLine.match(/^"([^"]+)"|^([^,]+)/);
-      let headerStr = headerMatch ? (headerMatch[1] || headerMatch[2]) : '';
-
-      if (!headerStr) {
-        showToast(`❌ 无法解析表头`, 'error');
-        return;
-      }
-
-      const headerDelimiter = headerStr.includes('\t') ? '\t' : ',';
-
-      const rawHeaders = headerStr
-        .split(headerDelimiter)
+      const rawHeaders = headerLine
+        .split(delimiter)
         .map(h => h.trim().toLowerCase());
 
       // ==================== 2. 字段映射 ====================
       const columnMapping: Record<string, string> = {
-        'date': 'date',
-        'steps': 'steps',
-        'calories': 'calories',
+        date: 'date',
+        steps: 'steps',
+        calories: 'calories',
 
-        'heart_rate': 'heartRate',
-        'heartrate': 'heartRate',
+        heart_rate: 'heartRate',
+        heartrate: 'heartRate',
 
-        'sleep_level': 'sleepLevel',
-        'sleepscore': 'sleepLevel',
+        sleep_level: 'sleepLevel',
+        sleepscore: 'sleepLevel',
 
-        'weight': 'weight',
-        'bmi': 'bmi',
+        weight: 'weight',
+        bmi: 'bmi',
 
-        'body_fat': 'bodyFat',
-        'bodyfat': 'bodyFat',
+        body_fat: 'bodyFat',
+        bodyfat: 'bodyFat',
 
-        'body_water': 'bodyWater',
-        'bodywater': 'bodyWater',
+        body_water: 'bodyWater',
+        bodywater: 'bodyWater',
 
-        'muscle_mass': 'muscleMass',
-        'musclemass': 'muscleMass',
+        muscle_mass: 'muscleMass',
+        musclemass: 'muscleMass',
 
-        'blood_pressure': 'bloodPressure',
-        'bloodpressure': 'bloodPressure',
+        blood_pressure: 'bloodPressure',
+        bloodpressure: 'bloodPressure',
 
-        'blood_sugar': 'bloodSugar',
-        'bloodsugar': 'bloodSugar'
+        blood_sugar: 'bloodSugar',
+        bloodsugar: 'bloodSugar'
       };
 
       const fieldIndexMap: { index: number; field: string }[] = [];
@@ -375,33 +367,27 @@ else if (file.name.endsWith('.csv')) {
         return;
       }
 
-      // ==================== 3. 逐行解析 ====================
+      // ==================== 3. 逐行解析（修复错位风险） ====================
       const records: HealthRecord[] = [];
 
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i];
-        if (!line.trim()) continue;
+        if (!line) continue;
 
-        let dataStr = line;
-
-        // 处理可能的双引号包裹
-        const quoteMatch = line.match(/^"([^"]+)"/);
-        if (quoteMatch) {
-          dataStr = quoteMatch[1];
-        }
-
-        const delimiter = dataStr.includes('\t') ? '\t' : ',';
-        const values = dataStr.split(delimiter).map(v => v.trim());
+        const values = line
+          .replace(/^"|"$/g, '')
+          .split(delimiter)
+          .map(v => v.trim());
 
         const record: HealthRecord = {} as HealthRecord;
 
         for (const { index, field } of fieldIndexMap) {
           if (index >= values.length) continue;
 
-          let rawValue = values[index];
-          if (rawValue === undefined || rawValue === '') continue;
+          const rawValue = values[index];
+          if (!rawValue) continue;
 
-          // ==================== date 处理 ====================
+          // ==================== date ====================
           if (field === 'date') {
             let dateStr = rawValue.replace(/\//g, '-').trim();
 
@@ -416,14 +402,14 @@ else if (file.name.endsWith('.csv')) {
             }
           }
 
-          // ==================== 血压特殊格式 ====================
+          // ==================== blood pressure ====================
           else if (field === 'bloodPressure') {
             if (rawValue.includes('/')) {
-              record.bloodPressure = rawValue;
+              record.bloodPressure = rawValue.trim();
             }
           }
 
-          // ==================== 数值字段 ====================
+          // ==================== numeric fields ====================
           else {
             const num = parseFloat(rawValue);
             if (!isNaN(num)) {
@@ -432,12 +418,17 @@ else if (file.name.endsWith('.csv')) {
           }
         }
 
-        if (record.date && Object.keys(record).length >= 2) {
+        // ==================== 4. 更安全的判断 ====================
+        const hasData = Object.keys(record).some(
+          k => k !== 'date' && (record as any)[k] !== undefined
+        );
+
+        if (record.date && hasData) {
           records.push(record);
         }
       }
 
-      // ==================== 4. 保存 ====================
+      // ==================== 5. 保存 ====================
       if (records.length === 0) {
         showToast(`❌ 未找到有效记录`, 'error');
       } else {
