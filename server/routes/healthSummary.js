@@ -74,13 +74,25 @@ async function generateOneReport(userId, reportType, targetDate, isZh) {
         title = isZh ? `${year}年` : `${year}`;
     }
     
-    const existing = await new Promise((resolve) => {
-        db.get('SELECT id FROM health_reports WHERE user_id = ? AND report_type = ? AND report_date = ?', [userId, reportType, endDate], (err, row) => resolve(row));
+    const existing = await new Promise((resolve, reject) => {
+        db.get('SELECT id FROM health_reports WHERE user_id = ? AND report_type = ? AND report_date = ?', [userId, reportType, endDate], (err, row) => {
+            if (err) {
+                console.error('[healthSummary] db.get (existing check) error:', err);
+                return reject(err);
+            }
+            resolve(row);
+        });
     });
     if (existing) return null;
     
-    const records = await new Promise((resolve) => {
-        db.all(`SELECT * FROM health_records WHERE user_id = ? AND date >= ? AND date <= ? ORDER BY date ASC`, [userId, startDate, endDate], (err, rows) => resolve(rows || []));
+    const records = await new Promise((resolve, reject) => {
+        db.all(`SELECT * FROM health_records WHERE user_id = ? AND date >= ? AND date <= ? ORDER BY date ASC`, [userId, startDate, endDate], (err, rows) => {
+            if (err) {
+                console.error('[healthSummary] db.all (health_records fetch) error:', err);
+                return reject(err);
+            }
+            resolve(rows || []);
+        });
     });
     
     if (records.length === 0) return null;
@@ -111,12 +123,18 @@ async function generateOneReport(userId, reportType, targetDate, isZh) {
     const metrics = { avgSteps, avgSleep, avgWeight, avgBmi, weightChange, recordCount: records.length };
     
     // 存储原始数据，前端负责翻译
-    await new Promise((resolve) => {
+    await new Promise((resolve, reject) => {
         db.run(
             `INSERT INTO health_reports (user_id, report_type, report_date, title, metrics_data)
              VALUES (?, ?, ?, ?, ?)`,
             [userId, reportType, endDate, title, JSON.stringify(metrics)],
-            () => resolve()
+            (err) => {
+                if (err) {
+                    console.error('[healthSummary] db.run (INSERT health_reports) error:', err);
+                    return reject(err);
+                }
+                resolve();
+            }
         );
     });
     
@@ -124,45 +142,56 @@ async function generateOneReport(userId, reportType, targetDate, isZh) {
 }
 
 router.post('/generate-all', authenticateToken, async (req, res) => {
-    const { language } = req.body;
-    const isZh = language === 'zh';
-    const userId = req.user.id;
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth() + 1;
-    
-    const years = await new Promise((resolve) => {
-        db.all(`SELECT DISTINCT strftime('%Y', date) as year FROM health_records WHERE user_id = ? ORDER BY year`, [userId], (err, rows) => resolve(rows || []));
-    });
-    
-    const results = { week: 0, month: 0, year: 0 };
-    
-    for (const y of years) {
-        const year = parseInt(y.year);
-        if (year < currentYear) {
-            const yearReport = await generateOneReport(userId, 'year', `${year}-06-01`, isZh);
-            if (yearReport) results.year++;
-        }
-        for (let m = 1; m <= 12; m++) {
-            if (year === currentYear && m >= currentMonth) continue;
-            const monthReport = await generateOneReport(userId, 'month', `${year}-${String(m).padStart(2, '0')}-15`, isZh);
-            if (monthReport) results.month++;
-        }
-        const startOfYear = new Date(year, 0, 1);
-        const endOfYear = year < currentYear ? new Date(year, 11, 31) : new Date();
-        let current = new Date(startOfYear);
-        while (current <= endOfYear) {
-            if (year === currentYear && !isWeekComplete(current)) {
-                current.setDate(current.getDate() + 7);
-                continue;
+    try {
+        const { language } = req.body;
+        const isZh = language === 'zh';
+        const userId = req.user.id;
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth() + 1;
+        
+        const years = await new Promise((resolve, reject) => {
+            db.all(`SELECT DISTINCT strftime('%Y', date) as year FROM health_records WHERE user_id = ? ORDER BY year`, [userId], (err, rows) => {
+                if (err) {
+                    console.error('[healthSummary] db.all (distinct years fetch) error:', err);
+                    return reject(err);
+                }
+                resolve(rows || []);
+            });
+        });
+        
+        const results = { week: 0, month: 0, year: 0 };
+        
+        for (const y of years) {
+            const year = parseInt(y.year);
+            if (year < currentYear) {
+                const yearReport = await generateOneReport(userId, 'year', `${year}-06-01`, isZh);
+                if (yearReport) results.year++;
             }
-            const weekReport = await generateOneReport(userId, 'week', current, isZh);
-            if (weekReport) results.week++;
-            current.setDate(current.getDate() + 7);
+            for (let m = 1; m <= 12; m++) {
+                if (year === currentYear && m >= currentMonth) continue;
+                const monthReport = await generateOneReport(userId, 'month', `${year}-${String(m).padStart(2, '0')}-15`, isZh);
+                if (monthReport) results.month++;
+            }
+            const startOfYear = new Date(year, 0, 1);
+            const endOfYear = year < currentYear ? new Date(year, 11, 31) : new Date();
+            let current = new Date(startOfYear);
+            while (current <= endOfYear) {
+                if (year === currentYear && !isWeekComplete(current)) {
+                    current.setDate(current.getDate() + 7);
+                    continue;
+                }
+                const weekReport = await generateOneReport(userId, 'week', current, isZh);
+                if (weekReport) results.week++;
+                current.setDate(current.getDate() + 7);
+            }
         }
+        
+        res.json({ message: `生成完成：周报${results.week}份，月报${results.month}份，年报${results.year}份`, results });
+    } catch (err) {
+        console.error('[healthSummary] /generate-all error:', err);
+        res.status(500).json({ error: '生成报告失败', detail: err.message });
     }
-    
-    res.json({ message: `生成完成：周报${results.week}份，月报${results.month}份，年报${results.year}份`, results });
 });
 
 router.get('/', authenticateToken, (req, res) => {
