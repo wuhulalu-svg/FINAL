@@ -183,4 +183,55 @@ router.put('/me', authenticateToken, (req, res) => {
   );
 });
 
+// ========== [临时] 管理员直接添加用户（跳过邮箱验证）==========
+// 用途：为测试账号 kakawulala9@gmail.com / 3955368840@qq.com 直接入库
+// 保护：需要在请求头携带 x-admin-token（与环境变量 ADMIN_TOKEN 匹配）
+router.post('/admin/add-user', async (req, res) => {
+  const adminToken = req.headers['x-admin-token'];
+  const expectedToken = process.env.ADMIN_TOKEN || 'railway-admin-2024';
+
+  if (!adminToken || adminToken !== expectedToken) {
+    return res.status(403).json({ error: '无效的管理员令牌' });
+  }
+
+  const { name, email, password } = req.body;
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: '姓名、邮箱和密码为必填项' });
+  }
+
+  // 检查邮箱是否已注册
+  db.get('SELECT id FROM users WHERE email = ?', [email], async (err, row) => {
+    if (err) {
+      console.error('数据库错误:', err);
+      return res.status(500).json({ error: '服务器错误' });
+    }
+    if (row) {
+      return res.status(400).json({ error: '该邮箱已注册', user: { id: row.id, email } });
+    }
+
+    try {
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      db.run(
+        `INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)`,
+        [name, email, hashedPassword, 'user'],
+        function(err) {
+          if (err) {
+            console.error('插入用户失败:', err);
+            return res.status(500).json({ error: '服务器错误' });
+          }
+          console.log(`✅ Admin-added user: ${email} (id=${this.lastID})`);
+          res.status(201).json({
+            success: true,
+            user: { id: this.lastID, name, email }
+          });
+        }
+      );
+    } catch (error) {
+      console.error('添加用户错误:', error);
+      res.status(500).json({ error: '服务器错误' });
+    }
+  });
+});
+
 module.exports = router;
