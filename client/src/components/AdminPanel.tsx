@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { Users, Trash2, Crown, User, Shield } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
+// API 基础地址
+const API_BASE = 'https://final-production-4362.up.railway.app/api';
+
 interface UserData {
   id: number;
   name: string;
@@ -23,7 +26,7 @@ export function AdminPanel() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/admin/users', {
+      const response = await fetch(`${API_BASE}/admin/users`, {
         headers: { 'Authorization': `Bearer ${getToken()}` }
       });
       if (response.ok) {
@@ -41,7 +44,7 @@ export function AdminPanel() {
 
   const updateUserRole = async (userId: number, role: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/admin/users/${userId}/role`, {
+      const response = await fetch(`${API_BASE}/admin/users/${userId}/role`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -51,9 +54,14 @@ export function AdminPanel() {
       });
       if (response.ok) {
         fetchUsers();
+      } else {
+        const error = await response.json();
+        console.error('更新角色失败:', error);
+        alert(language === 'zh' ? '更新角色失败' : 'Failed to update role');
       }
     } catch (error) {
       console.error('更新角色失败:', error);
+      alert(language === 'zh' ? '网络错误' : 'Network error');
     }
   };
 
@@ -63,16 +71,21 @@ export function AdminPanel() {
     }
     
     try {
-      const response = await fetch(`http://localhost:3001/api/admin/users/${userId}`, {
+      const response = await fetch(`${API_BASE}/admin/users/${userId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${getToken()}` }
       });
       if (response.ok) {
         fetchUsers();
         if (selectedUser?.id === userId) setSelectedUser(null);
+      } else {
+        const error = await response.json();
+        console.error('删除用户失败:', error);
+        alert(language === 'zh' ? '删除用户失败' : 'Failed to delete user');
       }
     } catch (error) {
       console.error('删除用户失败:', error);
+      alert(language === 'zh' ? '网络错误' : 'Network error');
     }
   };
 
@@ -122,62 +135,70 @@ export function AdminPanel() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {users.map((user) => (
-                  <tr 
-                    key={user.id} 
-                    className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" 
-                    onClick={() => setSelectedUser(user)}
-                  >
-                    <td className="px-5 py-3 text-sm text-gray-600 dark:text-gray-400">#{user.id}</td>
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
-                          {user.name?.charAt(0) || 'U'}
-                        </div>
-                        <span className="text-gray-800 dark:text-white">{user.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3 text-sm text-gray-600 dark:text-gray-400">{user.email}</td>
-                    <td className="px-5 py-3">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        user.role === 'admin' 
-                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300' 
-                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                      }`}>
-                        {user.role === 'admin' ? (language === 'zh' ? '管理员' : 'Admin') : (language === 'zh' ? '用户' : 'User')}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                        {user.role !== 'admin' && (
-                          <button
-                            onClick={() => updateUserRole(user.id, 'admin')}
-                            className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                            title={language === 'zh' ? '设为管理员' : 'Make Admin'}
-                          >
-                            <Crown size={16} />
-                          </button>
-                        )}
-                        {user.role === 'admin' && user.id !== 1 && (
-                          <button
-                            onClick={() => updateUserRole(user.id, 'user')}
-                            className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
-                            title={language === 'zh' ? '取消管理员' : 'Remove Admin'}
-                          >
-                            <User size={16} />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => deleteUser(user.id)}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title={language === 'zh' ? '删除用户' : 'Delete User'}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                {users.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-8 text-center text-gray-500">
+                      {language === 'zh' ? '暂无用户' : 'No users found'}
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  users.map((user) => (
+                    <tr 
+                      key={user.id} 
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" 
+                      onClick={() => setSelectedUser(user)}
+                    >
+                      <td className="px-5 py-3 text-sm text-gray-600 dark:text-gray-400">#{user.id}</td>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+                            {user.name?.charAt(0) || 'U'}
+                          </div>
+                          <span className="text-gray-800 dark:text-white">{user.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 text-sm text-gray-600 dark:text-gray-400">{user.email}</td>
+                      <td className="px-5 py-3">
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          user.role === 'admin' 
+                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300' 
+                            : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                        }`}>
+                          {user.role === 'admin' ? (language === 'zh' ? '管理员' : 'Admin') : (language === 'zh' ? '用户' : 'User')}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                          {user.role !== 'admin' && (
+                            <button
+                              onClick={() => updateUserRole(user.id, 'admin')}
+                              className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                              title={language === 'zh' ? '设为管理员' : 'Make Admin'}
+                            >
+                              <Crown size={16} />
+                            </button>
+                          )}
+                          {user.role === 'admin' && user.id !== 1 && (
+                            <button
+                              onClick={() => updateUserRole(user.id, 'user')}
+                              className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                              title={language === 'zh' ? '取消管理员' : 'Remove Admin'}
+                            >
+                              <User size={16} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => deleteUser(user.id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title={language === 'zh' ? '删除用户' : 'Delete User'}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -213,7 +234,7 @@ export function AdminPanel() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">{language === 'zh' ? '角色' : 'Role'}</span>
-                    <span className="text-gray-800 dark:text-white">{selectedUser.role === 'admin' ? '管理员' : '普通用户'}</span>
+                    <span className="text-gray-800 dark:text-white">{selectedUser.role === 'admin' ? (language === 'zh' ? '管理员' : 'Admin') : (language === 'zh' ? '普通用户' : 'User')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">{language === 'zh' ? '注册时间' : 'Registered'}</span>
